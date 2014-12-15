@@ -352,6 +352,27 @@ sub write_hash_to_file {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Render perf metrics in hash to something nagios can understand
+
+sub render_perf_data {
+
+	my $perf_data 		= shift;
+	my $perf_data_count = scalar @$perf_data;
+	my $rendered_output = '';
+
+	$log->info("Rendering [$perf_data_count] perf metrics for nagios...");
+
+	for my $counter (@$perf_data) {
+		$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+		$rendered_output .= $counter->{'name'} . "=" . $counter->{'value'} . ",";
+	}
+
+	$log->debug("Rendered text:\n$rendered_output");
+
+	return $rendered_output;
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Get nfs v3 performance stats
 
 sub get_nfsv3_perf_stats {
@@ -403,20 +424,24 @@ sub get_nfsv3_perf_stats {
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
 
-		my $read_latency = 		calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
-		my $write_latency = 	calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
+		my @derived_perf_data = ();
 
+		push (@derived_perf_data,	{	'name' 	=> 'read_latency', 
+										'value' => calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data)});
 
-		my $ops_rate =			calc_counter_value('nfsv3_ops', 			'nfsv3', $current_perf_data, $old_perf_data);
-		my $read_ops_rate =		calc_counter_value('nfsv3_read_ops', 		'nfsv3', $current_perf_data, $old_perf_data);
-		my $write_ops_rate =	calc_counter_value('nfsv3_write_ops', 		'nfsv3', $current_perf_data, $old_perf_data);
+		push (@derived_perf_data,	{	'name'	=> 'write_latency',
+										'value' => calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data)});
 
-		$log->info("nfsv3 read   latency: $read_latency");
-		$log->info("nfsv3 write  latency: $write_latency");
+		push (@derived_perf_data,	{	'name'	=> 'ops_rate',
+										'value' => calc_counter_value('nfsv3_ops', 				'nfsv3', $current_perf_data, $old_perf_data)});
 
-		$log->info("nfsv3 ops       rate: $ops_rate");
-		$log->info("nfsv3 read ops  rate: $read_ops_rate");
-		$log->info("nfsv3 write ops rate: $write_ops_rate");
+		push (@derived_perf_data,	{	'name'	=> 'read_ops_rate',
+										'value' => calc_counter_value('nfsv3_read_ops', 		'nfsv3', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name'	=> 'write_ops_rate',
+										'value' => calc_counter_value('nfsv3_write_ops', 		'nfsv3', $current_perf_data, $old_perf_data)});
+
+		render_perf_data(\@derived_perf_data);
 	}
 }
 
@@ -480,19 +505,20 @@ sub get_aggregate_perf_stats {
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
 
-		my $time_delta = 	$current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
+		my @derived_perf_data = ();
 
-		my $total_transfers_rate 	= calc_counter_value('total_transfers', 	'aggregate', $current_perf_data, $old_perf_data);
+		push (@derived_perf_data,	{	'name' 	=> 'total_transfers', 
+										'value' => calc_counter_value('total_transfers', 	'aggregate', $current_perf_data, $old_perf_data)});
 
 		# 4K block size, in MB/s
-		my $user_read_throughput	= calc_counter_value('user_read_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024;
-		my $user_write_throughput	= calc_counter_value('user_write_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024;
+		push (@derived_perf_data,	{	'name' 	=> 'user_read_blocks', 
+										'value' => calc_counter_value('user_read_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024});
 
-		$log->info("total transfers rate: $total_transfers_rate");
+		# 4K block size, in MB/s
+		push (@derived_perf_data,	{	'name' 	=> 'user_write_blocks', 
+										'value' => calc_counter_value('user_write_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024});
 
-		$log->info("aggr read  throughput (MB/s): $user_read_throughput");
-		$log->info("aggr write throughput (MB/s): $user_write_throughput");
-	}
+		render_perf_data(\@derived_perf_data);	}
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -731,7 +757,7 @@ our $perf_object_counter_descriptions = {};
 #aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
 
 #get_nfsv3_perf_stats();
-#get_aggregate_perf_stats('aggr_SUBSAS01');
+get_aggregate_perf_stats('aggr_SUBSAS01');
 #get_aggregate_perf_stats('aggr_SUBBSAS01');
 
 
