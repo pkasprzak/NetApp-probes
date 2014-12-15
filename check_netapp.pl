@@ -515,340 +515,76 @@ sub get_volume_perf_stats {
 
 	my $counters = NaElement->new('counters');
 
-
-	# <name>parent_aggr</name>
-	# <desc>Name of hosting aggregate</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>string</properties>
-	# <unit>none</unit>
+	#  ----- Global stats -----
 
 	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>avg_latency</name>
-	# <desc>Average latency in microseconds for the WAFL filesystem to process all the operations on the volume; not including request processing or network communication time</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>total_ops</base-counter>
-
 	$counters->child_add_string('counter', 'avg_latency');
-
-	# <name>total_ops</name>
-	# <desc>Number of operations per second serviced by the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'total_ops');
 
-	# <name>read_data</name>
-	# <desc>Bytes read per second from the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
+
+	#  ----- Volume reads -----
 
 	$counters->child_add_string('counter', 'read_data');
-
-	# <name>read_latency</name>
-	# <desc>Average latency in microseconds for the WAFL filesystem to process read request to the volume; not including request processing or network communication time</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>read_ops</base-counter>
-
 	$counters->child_add_string('counter', 'read_latency');
-
-	# <name>read_ops</name>
-	# <desc>Number of reads per second to the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'read_ops');
-
-	# <name>write_data</name>
-	# <desc>Bytes written per second to the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
-
-	$counters->child_add_string('counter', 'write_data');
-
-	# <name>write_latency</name>
-	# <desc>Average latency in microseconds for the WAFL filesystem to process write request to the volume; not including request processing or network communication time</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>write_ops</base-counter>
-
-	$counters->child_add_string('counter', 'write_latency');
-
-	# <name>write_ops</name>
-	# <desc>Number of writes per second to the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'write_ops');
-
-	# <name>other_latency</name>
-	# <desc>Average latency in microseconds for the WAFL filesystem to process other operations to the volume; not including request processing or network communication time</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>other_ops</base-counter>
-
-	$counters->child_add_string('counter', 'other_latency');
-
-	# <name>other_ops</name>
-	# <desc>Number of other operations per second to the volume</desc>
-	# <privilege-level>basic</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'other_ops');
-
-	# <name>read_blocks</name>
-	# <desc>Number of blocks read per second from the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'read_blocks');
 
-	# <name>write_blocks</name>
-	# <desc>Number of blocks written per second to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
+	#  ----- Volume writes -----
 
+	$counters->child_add_string('counter', 'write_data');
+	$counters->child_add_string('counter', 'write_latency');
+	$counters->child_add_string('counter', 'write_ops');
 	$counters->child_add_string('counter', 'write_blocks');
 
-	# <name>nfs_read_data</name>
-	# <desc>Bytes read per second via NFS from the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
+	#  ----- Volume other ops -----
 
+	$counters->child_add_string('counter', 'other_latency');
+	$counters->child_add_string('counter', 'other_ops');
+
+	#  ----- Volume nfs -----
+	
 	$counters->child_add_string('counter', 'nfs_read_data');
-
-	# <name>nfs_read_latency</name>
-	# <desc>Average time for the WAFL filesystem to process NFS protocol read requests to the volume; not including NFS protocol request processing or network communication time which will also be included in client observed NFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>nfs_read_ops</base-counter>
-
 	$counters->child_add_string('counter', 'nfs_read_latency');
-
-	# <name>nfs_read_ops</name>
-	# <desc>Number of NFS reads per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfs_read_ops');
 
-	# <name>nfs_write_data</name>
-	# <desc>Bytes written per second via NFS to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfs_write_data');
-
-	# <name>nfs_write_latency</name>
-	# <desc>Average time for the WAFL filesystem to process NFS protocol write requests to the volume; not including NFS protocol request processing or network communication timewhich will also be included in client observed NFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>nfs_write_ops</base-counter>
-
 	$counters->child_add_string('counter', 'nfs_write_latency');
-
-	# <name>nfs_write_ops</name>
-	# <desc>Number of NFS writes per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfs_write_ops');
 
-	# <name>nfs_other_latency</name>
-	# <desc>Average time for the WAFL filesystem to process other NFS operations to the volume; not including NFS protocol request processing or network communication time which will also be included in client observed NFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>nfs_other_ops</base-counter>
-
 	$counters->child_add_string('counter', 'nfs_other_latency');
-
-	# <name>nfs_other_ops</name>
-	# <desc>Number of other NFS operations per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfs_other_ops');
 
-
-	# <name>cifs_read_data</name>
-	# <desc>Bytes read per second via cifs from the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
+	#  ----- Volume cifs -----
 
 	$counters->child_add_string('counter', 'cifs_read_data');
+	$counters->child_add_string('counter', 'cifs_read_latency');
+	$counters->child_add_string('counter', 'cifs_read_ops');
 
-	# <name>cifs_read_latency</name>
-	# <desc>Average time for the WAFL filesystem to process CIFS read requests to the volume; not including CIFS protocol request processing or network communication time which will also be included in client observed CIFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>cifs_read_ops</base-counter>
+	$counters->child_add_string('counter', 'cifs_write_data');
+	$counters->child_add_string('counter', 'cifs_write_latency');
+	$counters->child_add_string('counter', 'cifs_write_ops');
 
-	$counters->child_add_string('counter', 'parent_aggr');
+	$counters->child_add_string('counter', 'cifs_other_latency');
+	$counters->child_add_string('counter', 'cifs_other_ops');
 
-	# <name>cifs_read_ops</name>
-	# <desc>Number of cifs reads per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
+	#  ----- Volume iSCSI -----
 
-	$counters->child_add_string('counter', 'parent_aggr');
+	$counters->child_add_string('counter', 'iscsi_read_data');
+	$counters->child_add_string('counter', 'iscsi_read_latency');
+	$counters->child_add_string('counter', 'iscsi_read_ops');
 
-	# <name>cifs_write_data</name>
-	# <desc>Bytes written per second via cifs to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
+	$counters->child_add_string('counter', 'iscsi_write_data');
+	$counters->child_add_string('counter', 'iscsi_write_latency');
+	$counters->child_add_string('counter', 'iscsi_write_ops');
 
-	$counters->child_add_string('counter', 'parent_aggr');
+	$counters->child_add_string('counter', 'iscsi_other_latency');
+	$counters->child_add_string('counter', 'iscsi_other_ops');
 
-	# <name>cifs_write_latency</name>
-	# <desc>Average time for the WAFL filesystem to process CIFS write requests to the volume; not including CIFS protocol request processing or network communication time which will also be included in client observed CIFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>cifs_write_ops</base-counter>
+	#  ----- Volume inodes -----
 
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>cifs_write_ops</name>
-	# <desc>Number of cifs writes per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>cifs_other_latency</name>
-	# <desc>Average time for the WAFL filesystem to process other CIFS operations to the volume; not including CIFS protocol request processing or network communication time which will also be included in client observed CIFS request latency</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>cifs_other_ops</base-counter>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>cifs_other_ops</name>
-	# <desc>Number of other cifs operations per second to the volume</desc>
-	# <privilege-level>advanced</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_read_data</name>
-	# <desc>Bytes read per second via block protocol from the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_read_latency</name>
-	# <desc>Average time for the WAFL filesystem to process iSCSI protocol read operations to the volume; not including iSCSI protocol request processing or network communication time which will also be included in client observed iSCSI protocol request latency</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>iscsi_read_ops</base-counter>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_read_ops</name>
-	# <desc>Number of block protocol reads per second to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_write_data</name>
-	# <desc>Bytes written per second via block protocol to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>b_per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_write_latency</name>
-	# <desc>Average time for the WAFL filesystem to process iSCSI protocol write operations to the volume; not including iSCSI protocol request processing or network communication time which will also be included in client observed iSCSI request latency</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>iscsi_write_ops</base-counter>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_write_ops</name>
-	# <desc>Number of block protocol writes per second to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_other_latency</name>
-	# <desc>Average time for the WAFL filesystem to process other iSCSI protocol operations to the volume; not including iSCSI protocol request processing or network communication time which will also be included in client observed iSCSI protocol request latency</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>average</properties>
-	# <unit>microsec</unit>
-	# <base-counter>iscsi_other_ops</base-counter>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>iscsi_other_ops</name>
-	# <desc>Number of other block protocol operations per second to the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>rate</properties>
-	# <unit>per_sec</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>wv_fsinfo_public_inos_total</name>
-	# <desc>Total public inodes in the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>raw</properties>
-	# <unit>none</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>wv_fsinfo_public_inos_reserve</name>
-	# <desc>Reserved public inodes in the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>raw</properties>
-	# <unit>none</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
-
-	# <name>wv_fsinfo_public_inos_used</name>
-	# <desc>Used public inodes in the volume</desc>
-	# <privilege-level>diag</privilege-level>
-	# <properties>raw</properties>
-	# <unit>none</unit>
-
-	$counters->child_add_string('counter', 'parent_aggr');
+	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_total');
+	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_reserve');
+	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_used');
 
 	$request->child_add($counters);
 
