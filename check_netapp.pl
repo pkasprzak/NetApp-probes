@@ -256,6 +256,11 @@ sub calc_counter_value {
 			my $current_base_counter_data	= $current_perf_data->{$base_counter_name};
 			my $old_base_counter_data 		= $old_perf_data->{$base_counter_name};
 
+			if ($current_base_counter_data == $old_base_counter_data) {
+				$log->warn("Old and new base counter equal -> returning 0 to prevent division by zero.");
+				return 0;
+			}
+
 			my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
 								($current_base_counter_data - $old_base_counter_data);
 
@@ -642,19 +647,22 @@ sub get_volume_perf_stats {
 
 		#  ----- Global stats -----
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'avg_latency', 
-										'value' => calc_counter_value('avg_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('avg_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'total_ops', 
 										'value' => calc_counter_value('total_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
 		#  ----- Volume reads -----
 
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'read_data', 
-										'value' => calc_counter_value('read_data', 		'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('read_data', 		'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'read_latency',
-										'value' => calc_counter_value('read_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'read_ops', 
 										'value' => calc_counter_value('read_ops', 		'volume', $current_perf_data, $old_perf_data)});
@@ -664,12 +672,13 @@ sub get_volume_perf_stats {
 
 		#  ----- Volume writes -----
 
-
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'write_data', 
-										'value' => calc_counter_value('write_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'write_latency', 
-										'value' => calc_counter_value('write_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('write_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'write_ops', 
 										'value' => calc_counter_value('write_ops', 		'volume', $current_perf_data, $old_perf_data)});
@@ -679,92 +688,106 @@ sub get_volume_perf_stats {
 
 		#  ----- Volume other ops -----
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'other_latency', 
-										'value' => calc_counter_value('other_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('other_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'other_ops', 
 										'value' => calc_counter_value('other_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
 		#  ----- Volume nfs -----
 	
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_data', 
-										'value' => calc_counter_value('nfs_read_data', 		'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('nfs_read_data', 		'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_latency', 
-										'value' => calc_counter_value('nfs_read_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('nfs_read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_ops', 
 										'value' => calc_counter_value('nfs_read_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
 
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_data', 
-										'value' => calc_counter_value('nfs_write_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('nfs_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_latency', 
-										'value' => calc_counter_value('nfs_write_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('nfs_write_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_ops', 
 										'value' => calc_counter_value('nfs_write_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
-
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_other_latency', 
-										'value' => calc_counter_value('nfs_other_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('nfs_other_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'nfs_other_ops', 
 										'value' => calc_counter_value('nfs_other_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
 		#  ----- Volume cifs -----
 
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_data', 
-										'value' => calc_counter_value('cifs_read_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('cifs_read_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_latency', 
-										'value' => calc_counter_value('cifs_read_latency', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('cifs_read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_ops', 
 										'value' => calc_counter_value('cifs_read_ops', 		'volume', $current_perf_data, $old_perf_data)});
 
 
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_data', 
-										'value' => calc_counter_value('cifs_write_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('cifs_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_latency', 
-										'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_ops', 
 										'value' => calc_counter_value('cifs_write_ops', 	'volume', $current_perf_data, $old_perf_data)});
 
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_other_latency', 
-										'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'cifs_other_ops', 
 										'value' => calc_counter_value('cifs_other_ops', 	'volume', $current_perf_data, $old_perf_data)});
 
 		#  ----- Volume iSCSI -----
 
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_data', 
-										'value' => calc_counter_value('iscsi_read_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('iscsi_read_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_latency', 
-										'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_ops', 
 										'value' => calc_counter_value('iscsi_read_ops', 	'volume', $current_perf_data, $old_perf_data)});
 
-
+		# Convert to MB
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_data', 
-										'value' => calc_counter_value('iscsi_write_data', 	'volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('iscsi_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024)});
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_latency', 
-										'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_ops', 
 										'value' => calc_counter_value('iscsi_write_ops', 	'volume', $current_perf_data, $old_perf_data)});
 
 
+		# Convert to ms
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_other_latency', 
-										'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data, $old_perf_data) / 1000});
 
 		push (@derived_perf_data,	{	'name' 	=> 'iscsi_other_ops', 
 										'value' => calc_counter_value('iscsi_other_ops', 	'volume', $current_perf_data, $old_perf_data)});
@@ -893,6 +916,6 @@ our $perf_object_counter_descriptions = {};
 #get_nfsv3_perf_stats();
 #get_aggregate_perf_stats('aggr_SUBSAS01');
 #get_aggregate_perf_stats('aggr_SUBBSAS01');
-get_volume_perf_stats('vol_MMGV02_intern_iscsi_root');
+get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
 
 $plugin->nagios_exit(OK, "Probe finished!");
