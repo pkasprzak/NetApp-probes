@@ -440,86 +440,20 @@ sub get_aggregate_perf_stats {
 
 	my $counters = NaElement->new('counters');
 
-	#		<name>total_transfers</name>
-	#		<desc>Total number of transfers per second serviced by the aggregate</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'total_transfers');
 
-	#		<name>user_reads</name>
-	#		<desc>Number of user reads per second to the aggregate</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_reads');
-
-	#		<name>user_writes</name>
-	#		<desc>Number of user writes per second to the aggregate</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_writes');
-
-	#		<name>user_read_blocks</name>
-	#		<desc>Number of blocks read per second on the aggregate</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_read_blocks');
-
-	#		<name>user_write_blocks</name>
-	#		<desc>Number of blocks written per second to the aggregate</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_write_blocks');
 
 	# ----- *_hdd version of counters are equal to normal as there are only hdds in the aggregates (no ssds) -----
 
-	#		<name>total_transfers_hdd</name>
-	#		<desc>Total number of transfers per second serviced by the aggregate HDD disks</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'total_transfers_hdd');
 
-	#		<name>user_reads_hdd</name>
-	#		<desc>Number of user reads per second to the aggregate HDD disks</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_reads_hdd');
-
-	#		<name>user_writes_hdd</name>
-	#		<desc>Number of user writes per second to the aggregate HDD disks</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_writes_hdd');
-
-	#		<name>user_read_blocks_hdd</name>
-	#		<desc>Number of blocks read per second on the aggregate HDD disks</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_read_blocks_hdd');
-
-	#		<name>user_write_blocks_hdd</name>
-	#		<desc>Number of blocks written per second to the aggregate HDD disks</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'user_write_blocks_hdd');
 
 	$request->child_add($counters);
@@ -548,13 +482,13 @@ sub get_aggregate_perf_stats {
 
 		my $time_delta = 	$current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
 
-		my $total_transfers_rate	= ($current_perf_data->{'total_transfers'} - $old_perf_data->{'total_transfers'}) / $time_delta;
+		my $total_transfers_rate 	= calc_counter_value('total_transfers', 	'aggregate', $current_perf_data, $old_perf_data);
+
+		# 4K block size, in MB/s
+		my $user_read_throughput	= calc_counter_value('user_read_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024;
+		my $user_write_throughput	= calc_counter_value('user_write_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024;
 
 		$log->info("total transfers rate: $total_transfers_rate");
-
-		# 64K block size
-		my $user_read_throughput	=  ($current_perf_data->{'user_read_blocks'}	- $old_perf_data->{'user_read_blocks'})  * 4 / ($time_delta * 1024);
-		my $user_write_throughput	=  ($current_perf_data->{'user_write_blocks'}	- $old_perf_data->{'user_write_blocks'}) * 4 / ($time_delta * 1024);
 
 		$log->info("aggr read  throughput (MB/s): $user_read_throughput");
 		$log->info("aggr write throughput (MB/s): $user_write_throughput");
@@ -1060,11 +994,9 @@ our $perf_object_counter_descriptions = {};
 
 #aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
 
-
-
-get_nfsv3_perf_stats();
+#get_nfsv3_perf_stats();
 #get_aggregate_perf_stats('aggr_SUBSAS01');
-
+#get_aggregate_perf_stats('aggr_SUBBSAS01');
 
 
 
