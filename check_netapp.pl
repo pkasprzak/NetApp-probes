@@ -145,8 +145,14 @@ sub list_perf_objects {
 sub list_perf_object_counters {
 
 	my $perf_object = shift;
+	our $perf_object_counter_descriptions;
 
-	$log->info("Listing performance counters for object: $perf_object");
+	$log->info("Loading performance counter descriptions for object: $perf_object");
+
+	# Try to load from file first
+	my $tmp_file = "/tmp/check_netapp.perf_object_counter_descriptions.$perf_object.json";
+
+
 
 	my $request	= NaElement->new('perf-object-counter-list-info');
 	$request->child_add_string('objectname', $perf_object);
@@ -163,47 +169,52 @@ sub list_perf_object_counters {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Read perf data from file (in JSON format)
+# Read hash from file (in JSON format)
 
-sub read_perf_stats_from_file {
+sub read_hash_from_file {
 
-	my $file = shift;
+	my $file 						= shift;
+	my $delete_file_after_reading 	= shift;
 
 	our $json_parser;
-	my $perf_data = {};
+	my $hash_data = {};
 
 	if (-f $file) {
 
-		$log->debug("Loading previous perf data from file: $file");
-		my $perf_data_json = read_file($file);
+		$log->debug("Loading data from file: $file");
+		my $hash_data_json = read_file($file);
 
 		# Convert JSON to array
-		$perf_data = $json_parser->decode($perf_data_json);
+		$hash_data = $json_parser->decode($hash_data_json);
 
-		$log->debug($perf_data);
+		if ($log->is_debug()) {
+			$log->debug($hash_data);
+		}
 
 		# Delete old file
-		unlink $file;
+		if ($delete_file_after_reading) {
+			unlink $file;
+		}
 	}
 
-	return $perf_data;
+	return $hash_data;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Write perf data to file (in JSON format)
 
-sub write_perf_stats_to_file {
+sub write_hash_to_file {
 
 	my $file 		= shift;
-	my $perf_data 	= shift;
+	my $hash_data 	= shift;
 
 	our $json_parser;
 
 	# Encode hash in JSON string
-	my $perf_data_json = $json_parser->pretty->encode($perf_data);
+	my $hash_data_json = $json_parser->pretty->encode($hash_data);
 
 	# Write to file
-	write_file($file, $perf_data_json);
+	write_file($file, $hash_data_json);
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -446,9 +457,9 @@ sub get_aggregate_perf_stats {
 
 	# Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_perf_stats_from_file($tmp_file);
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_perf_stats_to_file($tmp_file, $current_perf_data);
+	write_hash_to_file($tmp_file, $current_perf_data);
 
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
@@ -840,9 +851,9 @@ sub get_volume_perf_stats {
 
 	# Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_perf_stats_from_file($tmp_file);
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_perf_stats_to_file($tmp_file, $current_perf_data);
+	write_hash_to_file($tmp_file, $current_perf_data);
 
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
@@ -949,7 +960,11 @@ if($@) { # check for any exception
 
 our $json_parser = JSON->new->allow_nonref;
 
-list_perf_objects();
+# Array of counter descriptions for various objects. Persisted into files.
+our $perf_object_counter_descriptions = {};
+
+
+#list_perf_objects();
 
 #list_perf_object_counters('nfsv3');
 
@@ -957,16 +972,16 @@ list_perf_objects();
 
 #list_perf_object_counters('volume');
 
-#list_perf_object_counters('aggregate');
+list_perf_object_counters('aggregate');
 
-list_perf_object_counters('processor');
+#list_perf_object_counters('processor');
 
 #aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
 
 
 
 #get_nfsv3_perf_stats();
-#get_aggregate_perf_stats('aggr_SUBSAS01');
+get_aggregate_perf_stats('aggr_SUBSAS01');
 
 
 
