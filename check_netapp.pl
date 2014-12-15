@@ -447,9 +447,9 @@ sub get_nfsv3_perf_stats {
 
 	# Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_perf_stats_from_file($tmp_file);
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_perf_stats_to_file($tmp_file, $current_perf_data);
+	write_hash_to_file($tmp_file, $current_perf_data);
 
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
@@ -1103,7 +1103,7 @@ our $perf_object_counter_descriptions = {};
 
 #list_perf_objects();
 
-load_perf_object_counter_descriptions('nfsv3');
+#load_perf_object_counter_descriptions('nfsv3');
 
 #load_perf_object_counter_descriptions('vfiler');
 
@@ -1117,7 +1117,7 @@ load_perf_object_counter_descriptions('nfsv3');
 
 
 
-#get_nfsv3_perf_stats();
+get_nfsv3_perf_stats();
 #get_aggregate_perf_stats('aggr_SUBSAS01');
 
 
