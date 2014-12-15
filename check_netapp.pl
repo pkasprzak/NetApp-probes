@@ -173,11 +173,11 @@ sub load_perf_object_counter_descriptions {
 			my $counter_description = {};
 
 			$counter_description->{'name'} 				= $_->child_get_string('name');
-			$counter_description->{'privilege-level'} 	= $_->child_get_string('privilege-level');
+			$counter_description->{'privilege_level'} 	= $_->child_get_string('privilege-level');
 			$counter_description->{'desc'} 				= $_->child_get_string('desc');
 			$counter_description->{'properties'} 		= $_->child_get_string('properties');
 			$counter_description->{'unit'} 				= $_->child_get_string('unit');
-			$counter_description->{'base-counter'}		= $_->child_get_string('base-counter');
+			$counter_description->{'base_counter'}		= $_->child_get_string('base-counter');
 
 			$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
 		}
@@ -204,16 +204,13 @@ sub calc_counter_value {
 
 	$log->debug("Calculating value of counter '$counter_name' of perf object '$perf_object'");
 
-	# Get counter descriptions for given perf object
-	my $counter_descriptions = $perf_object_counter_descriptions->{$perf_object};
-
-	# If no descriptions available yet, load them!
-	if (! %$counter_descriptions) {
+	# Get counter descriptions. If no descriptions available yet, load them!
+	if (! $perf_object_counter_descriptions->{$perf_object}) {
 		load_perf_object_counter_descriptions($perf_object);
-		$counter_descriptions = $perf_object_counter_descriptions->{$perf_object};
-	}
+	} 
 
-	my $counter_description = $counter_descriptions->{$counter_name};
+	my $counter_descriptions 	= $perf_object_counter_descriptions->{$perf_object};
+	my $counter_description 	= $counter_descriptions->{$counter_name};
 
 	# Check, if there is a description for the selected counter
 	if (! %$counter_description) {
@@ -248,7 +245,7 @@ sub calc_counter_value {
 
 		case 'average' {
 			# (c2 - c1) / (b2 - b1)
-			my $base_counter_name = $counter_description->{'base-counter'};
+			my $base_counter_name = $counter_description->{'base_counter'};
 			$log->debug("Using base counter '$base_counter_name' for calculations.");
 
 			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
@@ -267,7 +264,7 @@ sub calc_counter_value {
 
 		case 'percent' {
 			# 100 * (c2 - c1) / (b2 - b1)
-			my $base_counter_name = $counter_description->{'base-counter'};
+			my $base_counter_name = $counter_description->{'base_counter'};
 			$log->debug("Using base counter '$base_counter_name' for calculations.");
 
 			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
@@ -325,7 +322,7 @@ sub read_hash_from_file {
 		$hash_data = $json_parser->decode($hash_data_json);
 
 		if ($log->is_debug()) {
-			$log->debug($hash_data);
+			$log->debug(Dumper($hash_data));
 		}
 
 		# Delete old file
@@ -454,11 +451,14 @@ sub get_nfsv3_perf_stats {
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
 
-		my $read_latency = 	($current_perf_data->{'nfsv3_read_latency'} - $old_perf_data->{'nfsv3_read_latency'}) / 
-							($current_perf_data->{'nfsv3_avg_read_latency_base'} - $old_perf_data->{'nfsv3_avg_read_latency_base'});
+#		my $read_latency = 	($current_perf_data->{'nfsv3_read_latency'} - $old_perf_data->{'nfsv3_read_latency'}) / 
+#							($current_perf_data->{'nfsv3_avg_read_latency_base'} - $old_perf_data->{'nfsv3_avg_read_latency_base'});
 
-		my $write_latency = ($current_perf_data->{'nfsv3_write_latency'} - $old_perf_data->{'nfsv3_write_latency'}) / 
-							($current_perf_data->{'nfsv3_avg_write_latency_base'} - $old_perf_data->{'nfsv3_avg_write_latency_base'});
+#		my $write_latency = ($current_perf_data->{'nfsv3_write_latency'} - $old_perf_data->{'nfsv3_write_latency'}) / 
+#							($current_perf_data->{'nfsv3_avg_write_latency_base'} - $old_perf_data->{'nfsv3_avg_write_latency_base'});
+
+		my $read_latency = 	calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
+		my $write_latency = calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
 
 		$log->info("nfsv3 read  latency: $read_latency");
 		$log->info("nfsv3 write latency: $write_latency");
