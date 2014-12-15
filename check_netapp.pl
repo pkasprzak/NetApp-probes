@@ -35,6 +35,7 @@
 # cpan> install Log::Log4perl
 # cpan> install JSON
 # cpan> install File::Slurp
+# cpan> install Switch                 (CHORNY/Switch-2.17.tar.gz)
 #
 # 2.) Get NetApp perl SDK
 #
@@ -46,6 +47,10 @@ use strict;
 use warnings;
 use locale;
 
+use Data::Dumper;
+use Switch;
+
+# Need to be installed from CPAN
 use File::Slurp;
 use Nagios::Plugin;
 use Log::Log4perl;
@@ -168,11 +173,11 @@ sub load_perf_object_counter_descriptions {
 			my $counter_description = {};
 
 			$counter_description->{'name'} 				= $_->child_get_string('name');
-			$counter_description->{'privilege_level'} 	= $_->child_get_string('privilege-level');
+			$counter_description->{'privilege-level'} 	= $_->child_get_string('privilege-level');
 			$counter_description->{'desc'} 				= $_->child_get_string('desc');
 			$counter_description->{'properties'} 		= $_->child_get_string('properties');
 			$counter_description->{'unit'} 				= $_->child_get_string('unit');
-			$counter_description->{'base_counter'}		= $_->child_get_string('base-counter');
+			$counter_description->{'base-counter'}		= $_->child_get_string('base-counter');
 
 			$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
 		}
@@ -183,6 +188,121 @@ sub load_perf_object_counter_descriptions {
 
 	# Make descriptions available for later
 	$perf_object_counter_descriptions->{$perf_object} = $counter_descriptions;
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Calc counter value based on it's description and values at times t-1 and t
+
+sub calc_counter_value {
+
+	my $counter_name		= shift;
+	my $perf_object 		= shift;
+	my $current_perf_data 	= shift;
+	my $old_perf_data 		= shift;
+
+	our $perf_object_counter_descriptions;
+
+	$log->debug("Calculating value of counter '$counter_name' of perf object '$perf_object'");
+
+	# Get counter descriptions for given perf object
+	my $counter_descriptions = $perf_object_counter_descriptions->{$perf_object};
+
+	# If no descriptions available yet, load them!
+	if (! %$counter_descriptions) {
+		load_perf_object_counter_descriptions($perf_object);
+		$counter_descriptions = $perf_object_counter_descriptions->{$perf_object};
+	}
+
+	my $counter_description = $counter_descriptions->{$counter_name};
+
+	# Check, if there is a description for the selected counter
+	if (! %$counter_description) {
+		$log->error("No description found for counter '$counter_name' of perf object '$perf_object'!");
+		return;
+	} else {
+		$log->debug("Using description:\n" . Dumper($counter_description));
+	}
+
+	# Finally, calculate the value depending on the description
+	switch (lc($counter_description->{'properties'})) {
+
+		case 'raw' {
+			# Just return raw value
+			return $current_perf_data->{$counter_name};
+		}
+
+		case 'rate' {
+			# (c2 - c1) / (t2 - t1)
+			my $time_delta 		= $current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
+			my $counter_value 	= ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) / $time_delta;
+
+			return $counter_value;
+		}
+
+		case 'delta' {
+			# c2 - c1
+			my $counter_value 	= $current_perf_data->{$counter_name} - $old_perf_data->{$counter_name};
+
+			return $counter_value;
+		}
+
+		case 'average' {
+			# (c2 - c1) / (b2 - b1)
+			my $base_counter_name = $counter_description->{'base-counter'};
+			$log->debug("Using base counter '$base_counter_name' for calculations.");
+
+			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
+				$log->error("Base counter not available in perf data!");
+				return 0;
+			}
+
+			my $current_base_counter_data	= $current_perf_data->{$base_counter_name};
+			my $old_base_counter_data 		= $old_perf_data->{$base_counter_name};
+
+			my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
+								($current_base_counter_data - $old_base_counter_data);
+
+			return $counter_value;
+		}
+
+		case 'percent' {
+			# 100 * (c2 - c1) / (b2 - b1)
+			my $base_counter_name = $counter_description->{'base-counter'};
+			$log->debug("Using base counter '$base_counter_name' for calculations.");
+
+			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
+				$log->error("Base counter not available in perf data!");
+				return 0;
+			}
+
+			my $current_base_counter_data	= $current_perf_data->{$base_counter_name};
+			my $old_base_counter_data 		= $old_perf_data->{$base_counter_name};
+
+			my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
+								($current_base_counter_data - $old_base_counter_data);
+
+			return 100 * $counter_value;
+		}
+
+		case 'text' {
+			# Just text
+			return $current_perf_data->{$counter_name};
+		}
+
+		case 'nodisp' {
+			# Used for calculations (average, percent), should not be displayed directly
+			$log->warn("This counter has the 'nodisp' property and should not be displayed directly!");
+			return $current_perf_data->{$counter_name};
+		}
+
+		else {
+			# Unknown properties value
+			$log->error("Unkown properties value, just returning the current counter value!");
+			return $current_perf_data->{$counter_name};
+		}
+
+	}
+
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
