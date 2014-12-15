@@ -365,66 +365,18 @@ sub get_nfsv3_perf_stats {
 
 	my $counters = NaElement->new('counters');
 
-	# 	<name>nfsv3_ops</name>
-	# 	<desc>Total number of NFS v3 operations per second</desc>
-	#	<privilege-level>basic</privilege-level>
-	#	<properties>rate</properties>
-	#	<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfsv3_ops');
 
-	# nfs v3 reads
-
-	#		<name>nfsv3_read_latency</name>
-	#		<desc>Average latency for NFS v3 read operations in milliseconds</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>average</properties>
-	#		<unit>millisec</unit>
-	#		<base-counter>nfsv3_avg_read_latency_base</base-counter>
+	#  ----- nfs v3 reads -----
 
 	$counters->child_add_string('counter', 'nfsv3_read_latency');
-
-	#		<name>nfsv3_avg_read_latency_base</name>
-	#		<desc>Number of NFS V3 reads for latency calculation</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>delta,no-display</properties>
-	#		<unit>none</unit>
-
 	$counters->child_add_string('counter', 'nfsv3_avg_read_latency_base');
-
-	#		<name>nfsv3_read_ops</name>
-	#		<desc>Total observed NFS V3 read operations per second</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfsv3_read_ops');
 
 	#  ----- nfs v3 writes -----
 
-	#		<name>nfsv3_write_latency</name>
-	#		<desc>Average latency for NFS v3 write operations in milliseconds</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>average</properties>
-	#		<unit>millisec</unit>
-	#		<base-counter>nfsv3_avg_write_latency_base</base-counter>
-
 	$counters->child_add_string('counter', 'nfsv3_write_latency');
-
-	#		<name>nfsv3_avg_write_latency_base</name>
-	#		<desc>Number of NFS V3 writes for latency calculation</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>delta,no-display</properties>
-	#		<unit>none</unit>
-
 	$counters->child_add_string('counter', 'nfsv3_avg_write_latency_base');
-
-	#		<name>nfsv3_write_ops</name>
-	#		<desc>Total observed NFS v3 write operations per second</desc>
-	#		<privilege-level>basic</privilege-level>
-	#		<properties>rate</properties>
-	#		<unit>per_sec</unit>
-
 	$counters->child_add_string('counter', 'nfsv3_write_ops');
 
 	$request->child_add($counters);
@@ -451,23 +403,16 @@ sub get_nfsv3_perf_stats {
 	# Calculate latencies / op rates
 	if (%$old_perf_data) {
 
-#		my $read_latency = 	($current_perf_data->{'nfsv3_read_latency'} - $old_perf_data->{'nfsv3_read_latency'}) / 
-#							($current_perf_data->{'nfsv3_avg_read_latency_base'} - $old_perf_data->{'nfsv3_avg_read_latency_base'});
+		my $read_latency = 		calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
+		my $write_latency = 	calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
 
-#		my $write_latency = ($current_perf_data->{'nfsv3_write_latency'} - $old_perf_data->{'nfsv3_write_latency'}) / 
-#							($current_perf_data->{'nfsv3_avg_write_latency_base'} - $old_perf_data->{'nfsv3_avg_write_latency_base'});
 
-		my $read_latency = 	calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
-		my $write_latency = calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data);
+		my $ops_rate =			calc_counter_value('nfsv3_ops', 			'nfsv3', $current_perf_data, $old_perf_data);
+		my $read_ops_rate =		calc_counter_value('nfsv3_read_ops', 		'nfsv3', $current_perf_data, $old_perf_data);
+		my $write_ops_rate =	calc_counter_value('nfsv3_write_ops', 		'nfsv3', $current_perf_data, $old_perf_data);
 
-		$log->info("nfsv3 read  latency: $read_latency");
-		$log->info("nfsv3 write latency: $write_latency");
-
-		my $time_delta = 	$current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
-
-		my $ops_rate =			($current_perf_data->{'nfsv3_ops'} 			- $old_perf_data->{'nfsv3_ops'}) 		/ $time_delta;
-		my $read_ops_rate =		($current_perf_data->{'nfsv3_read_ops'} 	- $old_perf_data->{'nfsv3_read_ops'}) 	/ $time_delta;
-		my $write_ops_rate =	($current_perf_data->{'nfsv3_write_ops'} 	- $old_perf_data->{'nfsv3_write_ops'}) 	/ $time_delta;
+		$log->info("nfsv3 read   latency: $read_latency");
+		$log->info("nfsv3 write  latency: $write_latency");
 
 		$log->info("nfsv3 ops       rate: $ops_rate");
 		$log->info("nfsv3 read ops  rate: $read_ops_rate");
