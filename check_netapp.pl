@@ -142,7 +142,7 @@ sub list_perf_objects {
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
 
-sub list_perf_object_counters {
+sub load_perf_object_counter_descriptions {
 
 	my $perf_object = shift;
 	our $perf_object_counter_descriptions;
@@ -150,22 +150,39 @@ sub list_perf_object_counters {
 	$log->info("Loading performance counter descriptions for object: $perf_object");
 
 	# Try to load from file first
-	my $tmp_file = "/tmp/check_netapp.perf_object_counter_descriptions.$perf_object.json";
+	my $cache_file = "/tmp/check_netapp.perf_object_counter_descriptions.$perf_object.json";
+	my $counter_descriptions = read_hash_from_file($cache_file, 0);
 
+	if (! %$counter_descriptions) {
 
+		# No cache file yet -> load data from API and persist in file for later.
+		$log->info("No cache file found, loading from API...");
 
-	my $request	= NaElement->new('perf-object-counter-list-info');
-	$request->child_add_string('objectname', $perf_object);
+		my $request	= NaElement->new('perf-object-counter-list-info');
+		$request->child_add_string('objectname', $perf_object);
 
-	my $result 	= call_api($request);
+		my $result 	= call_api($request);
 
-#	foreach ($result->child_get('objects')->children_get()) {
-#		my $name 	= $_->child_get('name')->get_content();
-#		my $level 	= $_->child_get('privilege-level')->get_content();
+		foreach ($result->child_get('counters')->children_get()) {
 
-#		$log->info(sprintf("%30s: %10s", $name, $level));
-#	}
+			my $counter_description = {};
 
+			$counter_description->{'name'} 				= $_->child_get_string('name');
+			$counter_description->{'privilege_level'} 	= $_->child_get_string('privilege-level');
+			$counter_description->{'desc'} 				= $_->child_get_string('desc');
+			$counter_description->{'properties'} 		= $_->child_get_string('properties');
+			$counter_description->{'unit'} 				= $_->child_get_string('unit');
+			$counter_description->{'base_counter'}		= $_->child_get_string('base-counter');
+
+			$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
+		}
+
+		# Persist to file
+		write_hash_to_file($cache_file, $counter_descriptions);
+	}
+
+	# Make descriptions available for later
+	$perf_object_counter_descriptions->{$perf_object} = $counter_descriptions;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -966,22 +983,22 @@ our $perf_object_counter_descriptions = {};
 
 #list_perf_objects();
 
-#list_perf_object_counters('nfsv3');
+load_perf_object_counter_descriptions('nfsv3');
 
-#list_perf_object_counters('vfiler');
+#load_perf_object_counter_descriptions('vfiler');
 
-#list_perf_object_counters('volume');
+#load_perf_object_counter_descriptions('volume');
 
-list_perf_object_counters('aggregate');
+#load_perf_object_counter_descriptions('aggregate');
 
-#list_perf_object_counters('processor');
+#load_perf_object_counter_descriptions('processor');
 
 #aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
 
 
 
 #get_nfsv3_perf_stats();
-get_aggregate_perf_stats('aggr_SUBSAS01');
+#get_aggregate_perf_stats('aggr_SUBSAS01');
 
 
 
