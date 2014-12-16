@@ -809,6 +809,65 @@ sub get_volume_perf_stats {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get nfs v3 performance stats
+
+sub get_processor_perf_stats {
+
+	$log->info("Getting performance stats for processors...");
+
+	my $tmp_file = "/tmp/check_netapp.get_processor_perf_stats.json";
+
+	my $request	= NaElement->new('perf-object-get-instances');
+	$request->child_add_string('objectname', 'processor');
+
+	my $counters = NaElement->new('counters');
+
+	$counters->child_add_string('counter', 'processor_busy');
+	$counters->child_add_string('counter', 'processor_elapsed_time');
+	$counters->child_add_string('counter', 'domain_busy');
+
+	$request->child_add($counters);
+
+	my $result 				= call_api($request);
+	my $current_perf_data 	= {};
+
+	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+
+	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+
+		my $counter_name 	= $_->child_get_string('name');
+		my $counter_value 	= $_->child_get_string('value');
+
+		$current_perf_data->{$counter_name} = $counter_value;
+	}
+
+	# Load old counters from file and persist new ones insted
+
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+
+	write_hash_to_file($tmp_file, $current_perf_data);
+
+	# Calculate latencies / op rates
+	if (%$old_perf_data) {
+
+		my @derived_perf_data = ();
+
+		push (@derived_perf_data,	{	'name' 	=> 'processor_busy', 
+										'value' => calc_counter_value('processor_busy', 		'processor', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name'	=> 'processor_elapsed_time',
+										'value' => calc_counter_value('processor_elapsed_time', 'processor', $current_perf_data, $old_perf_data)});
+
+#		push (@derived_perf_data,	{	'name'	=> 'domain_busy',
+#										'value' => calc_counter_value('domain_busy', 			'processor', $current_perf_data, $old_perf_data)});
+
+
+		render_perf_data(\@derived_perf_data);
+	}
+}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -917,5 +976,6 @@ our $perf_object_counter_descriptions = {};
 #get_aggregate_perf_stats('aggr_SUBSAS01');
 #get_aggregate_perf_stats('aggr_SUBBSAS01');
 get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
+#get_processor_perf_stats();
 
 $plugin->nagios_exit(OK, "Probe finished!");
