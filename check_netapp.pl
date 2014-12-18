@@ -220,32 +220,6 @@ sub load_perf_object_counter_descriptions {
 					}
 				}
 			}
-
-#			unless (defined $counter_description->{'type'} and $counter_description->{'type'} eq 'array') {
-#				# Standard counter description
-#				$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
-#			} else {
-#				# Array based counter description for 'domain_busy' processor counter 
-#				if ($perf_object eq 'processor' and $counter_description->{'name'} eq 'domain_busy') {
-#
-#					# Get number of processors
-#					our $static_system_stats;
-#					my $processor_count = $static_system_stats->{'num_processors'};
-
-#					foreach my $processor (0 .. $processor_count - 1) {
-#						my @labels = split(',', $na_element->child_get('labels')->child_get_string('label-info'));
-#						foreach my $label (@labels) {
-#							my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'} . '_' . $label;
-#							my $new_counter_description	= clone($counter_description);
-#
-#							$new_counter_description->{'name'} = $new_counter_name;
-#							delete $new_counter_description->{'type'};
-#							$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
-#						}
-#					} 
-#
-#				}
-#			}
 		}
 
 		# Persist to file
