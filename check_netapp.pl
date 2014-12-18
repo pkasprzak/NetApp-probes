@@ -1,4 +1,4 @@
-#!/opt/local/bin/perl -w
+#!/usr/bin/env perl -w
 #
 # Nagios probe for checking a NetApp filer
 #
@@ -35,7 +35,8 @@
 # cpan> install Log::Log4perl
 # cpan> install JSON
 # cpan> install File::Slurp
-# cpan> install Switch                 (CHORNY/Switch-2.17.tar.gz)
+# cpan> install Switch                 	(CHORNY/Switch-2.17.tar.gz)
+# cpan> install Clone 					(GARU/Clone-0.37.tar.gz)
 #
 # 2.) Get NetApp perl SDK
 #
@@ -49,6 +50,7 @@ use locale;
 
 use Data::Dumper;
 use Switch;
+use Clone qw(clone);
 
 # Need to be installed from CPAN
 use File::Slurp;
@@ -168,18 +170,82 @@ sub load_perf_object_counter_descriptions {
 
 		my $result 	= call_api($request);
 
-		foreach ($result->child_get('counters')->children_get()) {
+		foreach my $na_element ($result->child_get('counters')->children_get()) {
 
 			my $counter_description = {};
 
-			$counter_description->{'name'} 				= $_->child_get_string('name');
-			$counter_description->{'privilege_level'} 	= $_->child_get_string('privilege-level');
-			$counter_description->{'desc'} 				= $_->child_get_string('desc');
-			$counter_description->{'properties'} 		= $_->child_get_string('properties');
-			$counter_description->{'unit'} 				= $_->child_get_string('unit');
-			$counter_description->{'base_counter'}		= $_->child_get_string('base-counter');
+			$counter_description->{'name'} 				= $na_element->child_get_string('name');
+			$counter_description->{'privilege_level'} 	= $na_element->child_get_string('privilege-level');
+			$counter_description->{'desc'} 				= $na_element->child_get_string('desc');
+			$counter_description->{'properties'} 		= $na_element->child_get_string('properties');
+			$counter_description->{'unit'} 				= $na_element->child_get_string('unit');
+			$counter_description->{'base_counter'}		= $na_element->child_get_string('base-counter');
+			$counter_description->{'type'}				= $na_element->child_get_string('type');
 
-			$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
+			# Need special processing stuff for processor objects
+			if (! $perf_object eq 'processor') {
+				# Standard counter description
+				$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
+			} else {
+				# Get number of processors
+				our $static_system_stats;
+				my $processor_count = $static_system_stats->{'num_processors'};
+
+				# Create for each processor instance a set of counter descriptions
+				foreach my $processor (0 .. $processor_count - 1) {
+
+					unless (defined $counter_description->{'type'} and $counter_description->{'type'} eq 'array') {
+
+						my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'};
+						my $new_counter_description	= clone($counter_description);
+
+						$new_counter_description->{'name'} = $new_counter_name;
+						$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
+
+					} else {
+						# For type == array we need to process the labels
+						my @labels = split(',', $na_element->child_get('labels')->child_get_string('label-info'));
+						foreach my $label (@labels) {
+
+							my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'} . '_' . $label;
+							my $new_base_counter		= 'processor' . $processor . '_' . $counter_description->{'base_counter'};
+							my $new_counter_description	= clone($counter_description);
+
+							$new_counter_description->{'name'} 			= $new_counter_name;
+							$new_counter_description->{'base_counter'}	= $new_base_counter;
+
+							delete $new_counter_description->{'type'};
+							$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
+						}
+					}
+				}
+			}
+
+#			unless (defined $counter_description->{'type'} and $counter_description->{'type'} eq 'array') {
+#				# Standard counter description
+#				$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
+#			} else {
+#				# Array based counter description for 'domain_busy' processor counter 
+#				if ($perf_object eq 'processor' and $counter_description->{'name'} eq 'domain_busy') {
+#
+#					# Get number of processors
+#					our $static_system_stats;
+#					my $processor_count = $static_system_stats->{'num_processors'};
+
+#					foreach my $processor (0 .. $processor_count - 1) {
+#						my @labels = split(',', $na_element->child_get('labels')->child_get_string('label-info'));
+#						foreach my $label (@labels) {
+#							my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'} . '_' . $label;
+#							my $new_counter_description	= clone($counter_description);
+#
+#							$new_counter_description->{'name'} = $new_counter_name;
+#							delete $new_counter_description->{'type'};
+#							$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
+#						}
+#					} 
+#
+#				}
+#			}
 		}
 
 		# Persist to file
@@ -213,7 +279,7 @@ sub calc_counter_value {
 	my $counter_description 	= $counter_descriptions->{$counter_name};
 
 	# Check, if there is a description for the selected counter
-	if (! %$counter_description) {
+	if (! defined $counter_description or ! %$counter_description) {
 		$log->error("No description found for counter '$counter_name' of perf object '$perf_object'!");
 		return;
 	} else {
@@ -291,6 +357,11 @@ sub calc_counter_value {
 			return $current_perf_data->{$counter_name};
 		}
 
+		case 'string' {
+			# Just text
+			return $current_perf_data->{$counter_name};
+		}
+	
 		case 'nodisp' {
 			# Used for calculations (average, percent), should not be displayed directly
 			$log->warn("This counter has the 'nodisp' property and should not be displayed directly!");
@@ -302,9 +373,7 @@ sub calc_counter_value {
 			$log->error("Unkown properties value, just returning the current counter value!");
 			return $current_perf_data->{$counter_name};
 		}
-
 	}
-
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -378,11 +447,233 @@ sub render_perf_data {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get basic system stats
+
+sub get_static_system_stats {
+
+	$log->info("Getting basic system stats...");
+
+	my $tmp_file = "/tmp/check_netapp.get_static_system_stats.json";
+
+	# Try to load old counters from file and persist new ones insted
+	my $static_system_stats = read_hash_from_file($tmp_file, 0);
+
+	if (%$static_system_stats) {
+		return $static_system_stats;
+	}
+
+	# No cache file -> get data from API
+
+	my $request	= NaElement->new('perf-object-get-instances');
+	$request->child_add_string('objectname', 'system');
+
+	my $counters = NaElement->new('counters');
+
+	# ----- Static system description information -----
+
+	$counters->child_add_string('counter', 'hostname');
+	$counters->child_add_string('counter', 'instance_name');
+	$counters->child_add_string('counter', 'instance_uuid');
+	$counters->child_add_string('counter', 'node_name');
+	$counters->child_add_string('counter', 'num_processors');
+	$counters->child_add_string('counter', 'ontap_version');
+	$counters->child_add_string('counter', 'serial_no');
+	$counters->child_add_string('counter', 'system_id');
+	$counters->child_add_string('counter', 'system_model');
+
+	$request->child_add($counters);
+
+	my $result 				= call_api($request);
+	$static_system_stats	= {};
+
+	$static_system_stats->{'timestamp'} = $result->child_get_int('timestamp');
+
+	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+
+		my $counter_name 	= $_->child_get_string('name');
+		my $counter_value 	= $_->child_get_string('value');
+
+		$static_system_stats->{$counter_name} = $counter_value;
+	}
+
+	# Persits data for next time
+	write_hash_to_file($tmp_file, $static_system_stats);
+
+	return $static_system_stats;
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Get nfs v3 performance stats
+
+sub get_system_perf_stats {
+
+	$log->info("Getting performance stats for system...");
+
+	my $tmp_file = "/tmp/check_netapp.get_system_perf_stats.json";
+
+	my $request	= NaElement->new('perf-object-get-instances');
+	$request->child_add_string('objectname', 'system');
+
+	my $counters = NaElement->new('counters');
+
+	# ----- Global system counter -----
+
+	$counters->child_add_string('counter', 'uptime');
+	$counters->child_add_string('counter', 'time');
+
+	# ----- Global CPU stats -----
+
+	$counters->child_add_string('counter', 'total_processor_busy');
+	$counters->child_add_string('counter', 'cpu_busy');
+	$counters->child_add_string('counter', 'cpu_elapsed_time');
+	$counters->child_add_string('counter', 'cpu_elapsed_time1');
+	$counters->child_add_string('counter', 'cpu_elapsed_time2');
+	$counters->child_add_string('counter', 'avg_processor_busy');
+
+	# ----- Global HDD stats -----
+
+	$counters->child_add_string('counter', 'hdd_data_written');
+	$counters->child_add_string('counter', 'hdd_data_read');
+
+	$counters->child_add_string('counter', 'sys_read_latency');
+	$counters->child_add_string('counter', 'sys_avg_latency');
+	$counters->child_add_string('counter', 'sys_write_latency');
+
+	$counters->child_add_string('counter', 'disk_data_written');
+	$counters->child_add_string('counter', 'disk_data_read');
+
+	# ----- Global network stats -----
+
+	$counters->child_add_string('counter', 'net_data_sent');
+	$counters->child_add_string('counter', 'net_data_recv');
+
+	# ----- Global protocol ops -----
+
+	$counters->child_add_string('counter', 'total_ops');
+	$counters->child_add_string('counter', 'cifs_ops');
+	$counters->child_add_string('counter', 'nfs_ops');
+	$counters->child_add_string('counter', 'write_ops');
+	$counters->child_add_string('counter', 'iscsi_ops');
+	$counters->child_add_string('counter', 'read_ops');
+
+	$request->child_add($counters);
+
+	my $result 				= call_api($request);
+	my $current_perf_data 	= {};
+
+	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+
+	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+
+		my $counter_name 	= $_->child_get_string('name');
+		my $counter_value 	= $_->child_get_string('value');
+
+		$current_perf_data->{$counter_name} = $counter_value;
+	}
+
+	# Load old counters from file and persist new ones insted
+
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+
+	write_hash_to_file($tmp_file, $current_perf_data);
+
+	# Calculate latencies / op rates
+	if (%$old_perf_data) {
+
+		my @derived_perf_data = ();
+
+
+		# ----- Global system counter -----
+
+		push (@derived_perf_data,	{	'name' 	=> 'uptime', 
+										'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'time', 
+										'value' => calc_counter_value('time', 	'system', $current_perf_data, $old_perf_data)});
+
+		# ----- Global CPU stats -----
+
+
+		push (@derived_perf_data,	{	'name' 	=> 'total_processor_busy', 
+										'value' => calc_counter_value('total_processor_busy', 	'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'cpu_busy', 
+										'value' => calc_counter_value('cpu_busy', 				'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time', 
+										'value' => calc_counter_value('cpu_elapsed_time', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time1', 
+										'value' => calc_counter_value('cpu_elapsed_time1', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time2', 
+										'value' => calc_counter_value('cpu_elapsed_time2', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'avg_processor_busy', 
+										'value' => calc_counter_value('avg_processor_busy', 	'system', $current_perf_data, $old_perf_data)});
+
+		# ----- Global HDD stats -----
+
+		push (@derived_perf_data,	{	'name' 	=> 'hdd_data_written', 
+										'value' => calc_counter_value('hdd_data_written', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'hdd_data_read', 
+										'value' => calc_counter_value('hdd_data_read', 			'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'total_processor_busy', 
+										'value' => calc_counter_value('total_processor_busy', 	'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'sys_read_latency', 
+										'value' => calc_counter_value('sys_read_latency', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'sys_write_latency', 
+										'value' => calc_counter_value('sys_write_latency', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'disk_data_written', 
+										'value' => calc_counter_value('disk_data_written', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'disk_data_read', 
+										'value' => calc_counter_value('disk_data_read', 		'system', $current_perf_data, $old_perf_data)});
+
+		# ----- Global network stats -----
+
+		push (@derived_perf_data,	{	'name' 	=> 'net_data_sent', 
+										'value' => calc_counter_value('net_data_sent', 	'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'net_data_recv', 
+										'value' => calc_counter_value('net_data_recv',	'system', $current_perf_data, $old_perf_data)});
+
+		# ----- Global protocol ops -----
+
+		push (@derived_perf_data,	{	'name' 	=> 'total_ops', 
+										'value' => calc_counter_value('total_ops', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'cifs_ops', 
+										'value' => calc_counter_value('cifs_ops', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'nfs_ops', 
+										'value' => calc_counter_value('nfs_ops', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'write_ops', 
+										'value' => calc_counter_value('write_ops', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'iscsi_ops', 
+										'value' => calc_counter_value('iscsi_ops', 		'system', $current_perf_data, $old_perf_data)});
+
+		push (@derived_perf_data,	{	'name' 	=> 'read_ops', 
+										'value' => calc_counter_value('read_ops', 		'system', $current_perf_data, $old_perf_data)});
+		
+		render_perf_data(\@derived_perf_data);
+	}
+}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Get nfs v3 performance stats
 
 sub get_nfsv3_perf_stats {
 
-	$log->info("Getting performance performance stats for nfs v3...");
+	$log->info("Getting performance stats for nfs v3...");
 
 	my $tmp_file = "/tmp/check_netapp.get_nfsv3_perf_stats.json";
 
@@ -552,7 +843,6 @@ sub get_volume_perf_stats {
 	$counters->child_add_string('counter', 'parent_aggr');
 	$counters->child_add_string('counter', 'avg_latency');
 	$counters->child_add_string('counter', 'total_ops');
-
 
 	#  ----- Volume reads -----
 
@@ -833,12 +1123,35 @@ sub get_processor_perf_stats {
 
 	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+	#
+	# By not specifing processor we get data for all processors => create counters of all processors
+	# Also, 'domain_busy' provides values for the different domains as an array. Transform that to individual counters for each domain and
+	# also provide an aggregate counter for each domain
+	#
+	my @domain_busy_counters = [];
+	my @domain_busy_labels = split(',', "idle,kahuna,storage,exempt,raid,target,dnscache,cifs,wafl_exempt,wafl_xcleaner,sm_exempt,cluster,protocol,nwk_exclusive,nwk_exempt,nwk_legacy,hostOS");
+	foreach my $instance ($result->child_get('instances')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+		my $instance_name = $instance->child_get_string('name');
 
-		$current_perf_data->{$counter_name} = $counter_value;
+		foreach my $counter ($instance->child_get('counters')->children_get()) {
+
+			my $counter_name 	= $counter->child_get_string('name');
+			my $counter_value 	= $counter->child_get_string('value');
+
+			unless ($counter_name eq 'domain_busy') {
+				$current_perf_data->{$instance_name . '_' . $counter_name} = $counter_value;
+			} else {
+				$log->debug("$counter_name : $counter_value");
+				my @domain_busy_values = split(',', $counter_value);
+				foreach my $i (0 .. (@domain_busy_values - 1)) {
+					my $domain_name = $instance_name . '_' . $counter_name . '_' . $domain_busy_labels[$i];
+					$current_perf_data->{$domain_name} = $domain_busy_values[$i];
+					# Keep track of generated counters for later
+					push (@domain_busy_counters, $domain_name);
+				}
+			}
+		}
 	}
 
 	# Load old counters from file and persist new ones insted
@@ -852,15 +1165,16 @@ sub get_processor_perf_stats {
 
 		my @derived_perf_data = ();
 
-		push (@derived_perf_data,	{	'name' 	=> 'processor_busy', 
-										'value' => calc_counter_value('processor_busy', 		'processor', $current_perf_data, $old_perf_data)});
+#		push (@derived_perf_data,	{	'name' 	=> 'processor_busy', 
+#										'value' => calc_counter_value('processor_busy', 		'processor', $current_perf_data, $old_perf_data)});
 
-		push (@derived_perf_data,	{	'name'	=> 'processor_elapsed_time',
-										'value' => calc_counter_value('processor_elapsed_time', 'processor', $current_perf_data, $old_perf_data)});
 
-#		push (@derived_perf_data,	{	'name'	=> 'domain_busy',
-#										'value' => calc_counter_value('domain_busy', 			'processor', $current_perf_data, $old_perf_data)});
-
+		# Add generated domain busy counters
+		$log->debug("counter names: " . Dumper(@domain_busy_counters));
+		foreach my $domain_busy_counter_name (@domain_busy_counters) {
+			push (@derived_perf_data,	{	'name' 	=> $domain_busy_counter_name, 
+											'value' => calc_counter_value($domain_busy_counter_name, 'processor', $current_perf_data, $old_perf_data)});
+		}
 
 		render_perf_data(\@derived_perf_data);
 	}
@@ -940,22 +1254,16 @@ $filer->set_admin_user($plugin->opts->user, $plugin->opts->password);
 $filer->set_bindings_family('7-Mode');
 $filer->set_transport_type($plugin->opts->protocol);
 
-eval { 
-	my $filer_version = $filer->system_get_version();
-   	$log->info("Data ONTAP version: $filer_version->{version}");
- };
-
-if($@) { # check for any exception
-	my ($error_reason, $error_code) = $@ =~ /(.+)\s\((\d+)\)/;
-   	$log->error("Error Reason: $error_reason, Code: $error_code");
-}
-
 # Get perf object list
-
 our $json_parser = JSON->new->allow_nonref;
 
 # Array of counter descriptions for various objects. Persisted into files.
 our $perf_object_counter_descriptions = {};
+
+# Get basic system stats, like verions, number of processors, etc. (needed for some calculations)
+our $static_system_stats = get_static_system_stats();
+
+$log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
 
 #list_perf_objects();
@@ -970,12 +1278,16 @@ our $perf_object_counter_descriptions = {};
 
 #load_perf_object_counter_descriptions('processor');
 
+#load_perf_object_counter_descriptions('system');
+
+
 #aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
 
 #get_nfsv3_perf_stats();
 #get_aggregate_perf_stats('aggr_SUBSAS01');
 #get_aggregate_perf_stats('aggr_SUBBSAS01');
-get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
-#get_processor_perf_stats();
+#get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
+get_processor_perf_stats();
+#get_system_perf_stats();
 
 $plugin->nagios_exit(OK, "Probe finished!");
