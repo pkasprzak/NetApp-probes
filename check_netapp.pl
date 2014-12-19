@@ -157,7 +157,8 @@ sub load_perf_object_counter_descriptions {
 	$log->info("Loading performance counter descriptions for object: $perf_object");
 
 	# Try to load from file first
-	my $cache_file = "/tmp/check_netapp.perf_object_counter_descriptions.$perf_object.json";
+	our $tmp_dir;
+	my $cache_file = "$tmp_dir/" . "check_netapp.perf_object_counter_descriptions.$perf_object.json";
 	my $counter_descriptions = read_hash_from_file($cache_file, 0);
 
 	if (! %$counter_descriptions) {
@@ -427,7 +428,8 @@ sub get_static_system_stats {
 
 	$log->info("Getting basic system stats...");
 
-	my $tmp_file = "/tmp/check_netapp.get_static_system_stats.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_static_system_stats.json";
 
 	# Try to load old counters from file and persist new ones insted
 	my $static_system_stats = read_hash_from_file($tmp_file, 0);
@@ -483,7 +485,8 @@ sub get_system_perf_stats {
 
 	$log->info("Getting performance stats for system...");
 
-	my $tmp_file = "/tmp/check_netapp.get_system_perf_stats.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_system_perf_stats.json";
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'system');
@@ -649,7 +652,8 @@ sub get_nfsv3_perf_stats {
 
 	$log->info("Getting performance stats for nfs v3...");
 
-	my $tmp_file = "/tmp/check_netapp.get_nfsv3_perf_stats.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_nfsv3_perf_stats.json";
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'nfsv3');
@@ -724,7 +728,8 @@ sub get_aggregate_perf_stats {
 
 	$log->info("Getting performance stats for aggregate: $aggregate");
 
-	my $tmp_file = "/tmp/check_netapp.get_aggregate_perf_stats.$aggregate.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_aggregate_perf_stats.$aggregate.json";
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'aggregate');
@@ -801,7 +806,8 @@ sub get_volume_perf_stats {
 
 	$log->info("Getting performance stats for volume: $volume");
 
-	my $tmp_file = "/tmp/check_netapp.get_volume_perf_stats.$volume.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_volume_perf_stats.$volume.json";
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'volume');
@@ -1079,7 +1085,8 @@ sub get_processor_perf_stats {
 
 	$log->info("Getting performance stats for processors...");
 
-	my $tmp_file = "/tmp/check_netapp.get_processor_perf_stats.json";
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_processor_perf_stats.json";
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'processor');
@@ -1228,14 +1235,7 @@ $plugin->add_arg(
 );
 
 $plugin->add_arg(
-	spec 		=> 'counter|c=s',
-	help 		=> "Select the performance counter(s) to use for communication (default: all).\n",
-	required 	=> 0,
-	default 	=> 'HTTPS'
-);
-
-$plugin->add_arg(
-	spec 		=> 'tmp_dir|t=s',
+	spec 		=> 'tmp_dir|T=s',
 	help 		=> "Location of directory for temporary files (default: /tmp).\n",
 	required 	=> 0,
 	default 	=> '/tmp'
@@ -1262,7 +1262,7 @@ alarm($plugin->opts->timeout);
 
 # tmp directory
 our $tmp_dir = $plugin->opts->tmp_dir;
-$log->info("Using $tmp_dir as directory form temp files.");
+$log->info("Using '$tmp_dir' as directory form temp files.");
 
 # Get server context
 
