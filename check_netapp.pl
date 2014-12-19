@@ -184,7 +184,7 @@ sub load_perf_object_counter_descriptions {
 			$counter_description->{'type'}				= $na_element->child_get_string('type');
 
 			# Need special processing stuff for processor objects
-			if (! $perf_object eq 'processor') {
+			if (! ($perf_object eq 'processor')) {
 				# Standard counter description
 				$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
 			} else {
@@ -1241,7 +1241,6 @@ $plugin->add_arg(
 	default 	=> '/tmp'
 );
 
-
 $plugin->getopts;
 
 # Signal handler - TERM
@@ -1287,25 +1286,36 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 #list_perf_objects();
 
 #load_perf_object_counter_descriptions('nfsv3');
-
 #load_perf_object_counter_descriptions('vfiler');
-
 #load_perf_object_counter_descriptions('volume');
-
 #load_perf_object_counter_descriptions('aggregate');
-
 #load_perf_object_counter_descriptions('processor');
-
 #load_perf_object_counter_descriptions('system');
 
 
-#aggregate, cifs, cifs_ops, cifs_stats, disk, ifnet, iscsi, perf, processor, raid, sis, system, 
+# Select the stats object
+switch (lc($plugin->opts->stats)) {
 
-#get_nfsv3_perf_stats();
-#get_aggregate_perf_stats('aggr_SUBSAS01');
-#get_aggregate_perf_stats('aggr_SUBBSAS01');
-#get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
-get_processor_perf_stats();
-#get_system_perf_stats();
+	case 'aggregate' {
+		get_aggregate_perf_stats('aggr_SUBSAS01');
+	}
+
+	case 'nfsv3' {
+		get_nfsv3_perf_stats();
+	}
+
+	case 'processor' {
+		get_processor_perf_stats();
+	}
+
+	case 'system' {
+		get_system_perf_stats();
+	}
+
+	case 'volume' {
+		get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
+	}
+}
 
 $plugin->nagios_exit(OK, "Probe finished!");
+
