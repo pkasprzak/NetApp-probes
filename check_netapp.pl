@@ -1175,30 +1175,70 @@ our $plugin = Nagios::Plugin->new (	usage 		=> "Usage: %s <-H <hostname> -p <por
 # Define additional arguments
 $plugin->add_arg(
 	spec 		=> 'hostname|H=s',
-	help 		=> "H|hostname\n Hostname or IP address of the NetApp filer to check.\n (default: localhost)",
+	help 		=> "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
 	required 	=> 0,
 	default 	=> 'localhost'
 );
 
 $plugin->add_arg(
 	spec 		=> 'user|U=s',
-	help 		=> "u|user\n User name for login.\n (default: none)",
+	help 		=> "User name for login (default: none).\n",
 	required 	=> 0,
 	default		=> ''
 );
 
 $plugin->add_arg(
 	spec 		=> 'password|P=s',
-	help 		=> "P|password\n Password for login.\n (default: none)",
+	help 		=> "Password for login (default: none).\n",
 	required 	=> 0,
 	default 	=> ''
 );
 
 $plugin->add_arg(
 	spec 		=> 'protocol|p=s',
-	help 		=> "p|protocol\n Protocol to use for communication.\n (default: HTTPS)",
+	help 		=> "Protocol to use for communication (default: HTTPS).\n",
 	required 	=> 0,
 	default 	=> 'HTTPS'
+);
+
+$plugin->add_arg(
+	spec 		=> 'stats|s=s',
+	help 		=> "Type of stats to retrieve (default: system). Valid values are:\n"	.
+					"     aggregate\n"			.
+					"     nfsv3\n"				.
+					"     processor\n"			.
+					"     system\n"				.
+					"     volume\n",
+	required 	=> 0,
+	default 	=> 'system'
+);
+
+$plugin->add_arg(
+	spec 		=> 'instance|i=s',
+	help 		=> "Select the instance for performance counter retrievel, where appropriate (i.e. aggregate / volume name).\n",
+	required 	=> 0,
+	default 	=> 'HTTPS'
+);
+
+$plugin->add_arg(
+	spec 		=> 'counter|c=s',
+	help 		=> "Select the performance counter(s) to use for communication (default: all).\n",
+	required 	=> 0,
+	default 	=> 'HTTPS'
+);
+
+$plugin->add_arg(
+	spec 		=> 'counter|c=s',
+	help 		=> "Select the performance counter(s) to use for communication (default: all).\n",
+	required 	=> 0,
+	default 	=> 'HTTPS'
+);
+
+$plugin->add_arg(
+	spec 		=> 'tmp_dir|t=s',
+	help 		=> "Location of directory for temporary files (default: /tmp).\n",
+	required 	=> 0,
+	default 	=> '/tmp'
 );
 
 
@@ -1219,6 +1259,10 @@ local $SIG{TERM} = sub {
 };
 
 alarm($plugin->opts->timeout);
+
+# tmp directory
+our $tmp_dir = $plugin->opts->tmp_dir;
+$log->info("Using $tmp_dir as directory form temp files.");
 
 # Get server context
 
