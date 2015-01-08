@@ -66,7 +66,11 @@ use NaElement;
 # Standard variables used in Nagios::Plugin constructor
 my $PROGNAME	= 'check_netapp';
 my $VERSION		= '0.1';
-my $DESCRIPTION	= 'Probe for checking a NetApp filer';
+my $DESCRIPTION	= 'Probe for checking a NetApp filer. Examples:\n'													.
+					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate -i <aggregate-name>\n'		.
+					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'							.
+					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s nfsv3\n'								.
+					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s system';
 my $EXTRA_DESC	= '';
 my $SHORTNAME	= 'CHECK_NETAPP';
 my $LICENSE		= 'This nagios plugin is free software, and comes with ABSOLUTELY NO WARRANTY.
@@ -1224,14 +1228,14 @@ $plugin->add_arg(
 	spec 		=> 'instance|i=s',
 	help 		=> "Select the instance for performance counter retrievel, where appropriate (i.e. aggregate / volume name).\n",
 	required 	=> 0,
-	default 	=> 'HTTPS'
+	default 	=> ''
 );
 
 $plugin->add_arg(
-	spec 		=> 'counter|c=s',
+	spec 		=> 'counters|c=s',
 	help 		=> "Select the performance counter(s) to use for communication (default: all).\n",
 	required 	=> 0,
-	default 	=> 'HTTPS'
+	default 	=> 'all'
 );
 
 $plugin->add_arg(
@@ -1279,9 +1283,13 @@ our $perf_object_counter_descriptions = {};
 
 # Get basic system stats, like verions, number of processors, etc. (needed for some calculations)
 our $static_system_stats = get_static_system_stats();
-
 $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
+# Create counter filter hash
+our %counter_filter = {};
+foreach my $selected_counter_name (split(',', $plugin->opts->counters)) {
+	%counter_filter{''}
+}
 
 #list_perf_objects();
 
@@ -1297,7 +1305,8 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 switch (lc($plugin->opts->stats)) {
 
 	case 'aggregate' {
-		get_aggregate_perf_stats('aggr_SUBSAS01');
+		# aggr_SUBSAS01
+		get_aggregate_perf_stats($plugin->opts->instance);
 	}
 
 	case 'nfsv3' {
