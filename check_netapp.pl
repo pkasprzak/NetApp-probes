@@ -427,15 +427,26 @@ sub render_perf_data {
 	my $perf_data_count = scalar @$perf_data;
 	our $probe_output;
 
-	$log->info("Rendering [$perf_data_count] perf metrics for nagios...");
+	$log->info("Rendering [$perf_data_count] perf metrics for output format [$$plugin->opts->output]...");
 
-	for my $counter (@$perf_data) {
-		$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-		$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
+	# Select the stats object
+	switch (lc($plugin->opts->output)) {
+
+		case 'nagios' {
+			for my $counter (@$perf_data) {
+				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
+			}
+
+			# Remove last two characters
+			$probe_output = substr($probe_output, length($probe_output - 2));
+		}
+
+		else {
+			# Unknown / unsupoorted format
+			$log->error("Unkown format => not rendering!");
+		}
 	}
-
-	# Remove last two characters
-	$probe_output = substr($probe_output, length($probe_output - 2));
 
 	$log->debug("Current rendered text:\n$probe_output");
 
@@ -1262,6 +1273,13 @@ $plugin->add_arg(
 	default 	=> '/tmp'
 );
 
+$plugin->add_arg(
+	spec 		=> 'output|o=s',
+	help 		=> "Define output format for the probe to use (default: nagios).\n",
+	required 	=> 0,
+	default 	=> 'nagios'
+);
+
 $plugin->getopts;
 
 # Signal handler - TERM
@@ -1346,5 +1364,7 @@ switch (lc($plugin->opts->stats)) {
 	}
 }
 
-$plugin->nagios_exit(OK, $probe_output);
+if ($plugin->opts->output eq 'nagios') {
+	$plugin->nagios_exit(OK, $probe_output);
+}
 
