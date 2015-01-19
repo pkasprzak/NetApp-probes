@@ -48,11 +48,9 @@
 # -----
 #
 # - Fix Perl interpreter call
-# - Set debug output to file
 # - Get rid of stderr messages for perl
 # - Adapt rendered output (support different models)
 # - Return rendered output correctly
-#
 #
 #
 #
@@ -427,18 +425,21 @@ sub render_perf_data {
 
 	my $perf_data 		= shift;
 	my $perf_data_count = scalar @$perf_data;
-	my $rendered_output = '';
+	our $probe_output;
 
 	$log->info("Rendering [$perf_data_count] perf metrics for nagios...");
 
 	for my $counter (@$perf_data) {
 		$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-		$rendered_output .= $counter->{'name'} . "=" . $counter->{'value'} . ",";
+		$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
 	}
 
-	$log->debug("Rendered text:\n$rendered_output");
+	# Remove last two characters
+	$probe_output = substr($probe_output, length($probe_output - 2));
 
-	return $rendered_output;
+	$log->debug("Current rendered text:\n$probe_output");
+
+#	return $probe_output;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1283,6 +1284,9 @@ alarm($plugin->opts->timeout);
 our $tmp_dir = $plugin->opts->tmp_dir;
 $log->info("Using '$tmp_dir' as directory form temp files.");
 
+# Returned output
+our $probe_output = '';
+
 # Get server context
 
 our $filer = NaServer->new($plugin->opts->hostname, 1, 15);
@@ -1342,5 +1346,5 @@ switch (lc($plugin->opts->stats)) {
 	}
 }
 
-$plugin->nagios_exit(OK, "Probe finished!");
+$plugin->nagios_exit(OK, $probe_output);
 
