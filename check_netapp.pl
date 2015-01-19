@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl -X
 #
 # Nagios probe for checking a NetApp filer
 #
@@ -60,6 +60,7 @@
 
 use strict;
 use warnings;
+#no warnings;
 use locale;
 
 use Data::Dumper;
