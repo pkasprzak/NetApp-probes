@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 # Installation:
+# -------------
 #
 # 1.) perl module dependencies:
 #
@@ -43,6 +44,19 @@
 # - Download netapp-manageability-sdk-5.3 from http://support.netapp.com/NOW/cgi-bin/software
 # - Copy lib/perl/NetApp directory with the perl modules to somewhere where it can be found by perl
 #
+# ToDo:
+# -----
+#
+# - Fix Perl interpreter call
+# - Set debug output to file
+# - Get rid of stderr messages for perl
+# - Adapt rendered output (support different models)
+# - Return rendered output correctly
+#
+#
+#
+#
+
 
 use strict;
 use warnings;
@@ -85,12 +99,14 @@ Copyright 2014 Piotr Kasprzak';
 
 my $log4j_conf = q(
 
-	log4perl.category.GWDG.NetApp = DEBUG, Screen
+#	log4perl.category.GWDG.NetApp = DEBUG, Screen, Logfile
+	log4perl.category.GWDG.NetApp = DEBUG, Logfile
 
-# 	log4perl.appender.Logfile = Log::Log4perl::Appender::File
-# 	log4perl.appender.Logfile.filename = test.log
-# 	log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
-# 	log4perl.appender.Logfile.layout.ConversionPattern = [%r] %F %L %m%n
+
+ 	log4perl.appender.Logfile = Log::Log4perl::Appender::File
+ 	log4perl.appender.Logfile.filename = /var/log/check_netapp.log
+ 	log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+ 	log4perl.appender.Logfile.layout.ConversionPattern = [%d %F:%M:%L] %m%n
 
 	log4perl.appender.Screen = Log::Log4perl::Appender::Screen
 	log4perl.appender.Screen.stderr = 0
@@ -148,7 +164,6 @@ sub list_perf_objects {
 	}
 
 }
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
