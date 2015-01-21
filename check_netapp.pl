@@ -48,10 +48,6 @@
 # -----
 #
 # - Fix Perl interpreter call
-# - Get rid of stderr messages for perl
-# - Adapt rendered output (support different models)
-# - Return rendered output correctly
-#
 #
 #
 
@@ -423,11 +419,13 @@ sub write_hash_to_file {
 
 sub render_perf_data {
 
+	our $probe_output;
+	our $plugin;
+
 	my $perf_data 		= shift;
 	my $perf_data_count = scalar @$perf_data;
-	our $probe_output;
 
-	$log->info("Rendering [$perf_data_count] perf metrics for output format [$$plugin->opts->output]...");
+	$log->info("Rendering [$perf_data_count] perf metrics for output format [$plugin->opts->output]...");
 
 	# Select the stats object
 	switch (lc($plugin->opts->output)) {
