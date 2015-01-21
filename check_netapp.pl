@@ -48,7 +48,8 @@
 # -----
 #
 # - Fix Perl interpreter call
-#
+# - Make it possible to select various stat groups at the same time => new way to pass parameter for parameter groups (use "="?)
+# - Make it possible to filter counter (white list)
 #
 
 
@@ -1139,7 +1140,7 @@ sub get_processor_perf_stats {
 	# Also, 'domain_busy' provides values for the different domains as an array. Transform that to individual counters for each domain and
 	# also provide an aggregate counter for each domain
 	#
-	my @domain_busy_counters = [];
+	my @domain_busy_counters = ();
 	my @domain_busy_labels = split(',', "idle,kahuna,storage,exempt,raid,target,dnscache,cifs,wafl_exempt,wafl_xcleaner,sm_exempt,cluster,protocol,nwk_exclusive,nwk_exempt,nwk_legacy,hostOS");
 	foreach my $instance ($result->child_get('instances')->children_get()) {
 
