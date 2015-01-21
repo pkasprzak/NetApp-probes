@@ -1300,8 +1300,21 @@ alarm($plugin->opts->timeout);
 our $tmp_dir = $plugin->opts->tmp_dir;
 $log->info("Using '$tmp_dir' as directory form temp files.");
 
-# Returned output
+# Returned probe output
 our $probe_output = '';
+
+# Initialize the probe output string according to selected format
+switch (lc($plugin->opts->output)) {
+
+	case 'nagios' {
+		$probe_output = '| ';
+	}
+
+	else {
+		# Unknown / unsupoorted format
+		$log->error("Unkown format => not initializing rendering!");
+	}
+}
 
 # Get server context
 
