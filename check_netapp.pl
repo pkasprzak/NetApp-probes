@@ -436,9 +436,6 @@ sub render_perf_data {
 				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
 				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
 			}
-
-			# Remove last two characters
-			$probe_output = substr($probe_output, 0, length($probe_output) - 2);
 		}
 
 		else {
@@ -1352,6 +1349,10 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 
 # Select the stats object
+my @selected_stats = split(',', lc($plugin->opts->stats);
+
+#foreach my $label (@labels) {
+
 switch (lc($plugin->opts->stats)) {
 
 	case 'aggregate' {
@@ -1376,7 +1377,20 @@ switch (lc($plugin->opts->stats)) {
 	}
 }
 
-if ($plugin->opts->output eq 'nagios') {
-	$plugin->nagios_exit(OK, $probe_output);
+# Postprocess probe output string according to selected format
+switch (lc($plugin->opts->output)) {
+
+	case 'nagios' {
+		# Remove last two characters
+		$probe_output = substr($probe_output, 0, length($probe_output) - 2);
+		$plugin->nagios_exit(OK, $probe_output);
+	}
+
+	else {
+		# Unknown / unsupoorted format
+		$log->error("Unkown output format => returning nothing!");
+		exit(0);
+	}
 }
+
 
