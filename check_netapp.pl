@@ -1238,21 +1238,14 @@ $plugin->add_arg(
 
 $plugin->add_arg(
 	spec 		=> 'stats|s=s',
-	help 		=> "Type of stats to retrieve (default: system). Valid values are:\n"	.
-					"     aggregate\n"			.
-					"     nfsv3\n"				.
-					"     processor\n"			.
-					"     system\n"				.
-					"     volume\n",
+	help 		=> "Type of stats to retrieve (default: system). Multiple stats can be selected, separated by a column. Valid values are:\n"	.
+					"     aggregate=aggr_name\n"	.
+					"     nfsv3\n"					.
+					"     processor\n"				.
+					"     system\n"					.
+					"     volume=vol_name\n"		,
 	required 	=> 0,
 	default 	=> 'system'
-);
-
-$plugin->add_arg(
-	spec 		=> 'instance|i=s',
-	help 		=> "Select the instance for performance counter retrievel, where appropriate (i.e. aggregate / volume name).\n",
-	required 	=> 0,
-	default 	=> ''
 );
 
 $plugin->add_arg(
@@ -1351,29 +1344,36 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 # Select the stats object
 my @selected_stats = split(',', lc($plugin->opts->stats);
 
-#foreach my $label (@labels) {
+foreach my $stat (@selected_stats) {
+	switch (lc($stat)) {
 
-switch (lc($plugin->opts->stats)) {
+		case 'aggregate' {
+			my ($name, $instance) = split('=', $stat);
+			# aggr_SUBSAS01
+			get_aggregate_perf_stats($instance);
+		}
 
-	case 'aggregate' {
-		# aggr_SUBSAS01
-		get_aggregate_perf_stats($plugin->opts->instance);
-	}
+		case 'nfsv3' {
+			get_nfsv3_perf_stats();
+		}
 
-	case 'nfsv3' {
-		get_nfsv3_perf_stats();
-	}
+		case 'processor' {
+			get_processor_perf_stats();
+		}
 
-	case 'processor' {
-		get_processor_perf_stats();
-	}
+		case 'system' {
+			get_system_perf_stats();
+		}
 
-	case 'system' {
-		get_system_perf_stats();
-	}
+		case 'volume' {
+			my ($name, $instance) = split('=', $stat);
+			get_volume_perf_stats($instance);
+		}
 
-	case 'volume' {
-		get_volume_perf_stats('vol_GWDG_ESX_SUB01_silber01');
+		else {
+			# Unknown / unsupoorted format
+			$log->error("Unkown stat name [$stat] => ignoring!");
+		}
 	}
 }
 
