@@ -48,7 +48,6 @@
 # -----
 #
 # - Fix Perl interpreter call
-# - Make it possible to select various stat groups at the same time => new way to pass parameter for parameter groups (use "="?)
 # - Make it possible to filter counter (white list)
 #
 
@@ -77,7 +76,7 @@ use NaElement;
 my $PROGNAME	= 'check_netapp';
 my $VERSION		= '0.1';
 my $DESCRIPTION	= 'Probe for checking a NetApp filer. Examples:\n'													.
-					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate -i <aggregate-name>\n'		.
+					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'			.
 					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'							.
 					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s nfsv3\n'								.
 					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s system';
@@ -426,13 +425,28 @@ sub render_perf_data {
 	my $perf_data 		= shift;
 	my $perf_data_count = scalar @$perf_data;
 
-	$log->info("Rendering [$perf_data_count] perf metrics for output format [$plugin->opts->output]...");
+	$log->info("Rendering [$perf_data_count] perf counter metrics for output format [$plugin->opts->output]...");
+
+	# Filter list of counters based on cli selection
+	my @filtered_perf_data = ();
+	my @counter_names = split(',', $plugin->opts->counters);
+	if ($plugin->opts->counters eq 'all') {
+		@filtered_perf_data = @$perf_data;
+	} else {
+		foreach my $counter (@$perf_data) {
+			if ($counter->{'name'} in @counter_names) {
+				push(@filtered_perf_data, $counter);
+			}
+		}
+	}
+	my $filtered_counter_num = length(@$perf_data) - length(@filtered_perf_data);
+	$log->info("Filtered [$filtered_counter_num] counter due to cli selection");
 
 	# Render metrics according to seleced format
 	switch (lc($plugin->opts->output)) {
 
 		case 'nagios' {
-			for my $counter (@$perf_data) {
+			for my $counter (@filtered_perf_data) {
 				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
 				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
 			}
@@ -445,8 +459,6 @@ sub render_perf_data {
 	}
 
 	$log->debug("Current rendered text:\n$probe_output");
-
-#	return $probe_output;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1250,7 +1262,7 @@ $plugin->add_arg(
 
 $plugin->add_arg(
 	spec 		=> 'counters|c=s',
-	help 		=> "Select the performance counter(s) to use for communication (default: all).\n",
+	help 		=> "Select the performance counter(s) to use by providing a column separated list of their names (default: all).\n",
 	required 	=> 0,
 	default 	=> 'all'
 );
