@@ -427,7 +427,7 @@ sub render_perf_data {
 
 	$log->info("Rendering [$perf_data_count] perf metrics for output format [$plugin->opts->output]...");
 
-	# Select the stats object
+	# Render metrics according to seleced format
 	switch (lc($plugin->opts->output)) {
 
 		case 'nagios' {
@@ -437,7 +437,7 @@ sub render_perf_data {
 			}
 
 			# Remove last two characters
-			$probe_output = substr($probe_output, length($probe_output - 2));
+			$probe_output = substr($probe_output, 0, length($probe_output) - 2);
 		}
 
 		else {
