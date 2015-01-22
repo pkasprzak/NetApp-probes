@@ -1337,12 +1337,6 @@ our $perf_object_counter_descriptions = {};
 our $static_system_stats = get_static_system_stats();
 $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
-# Create counter filter hash
-#our %counter_filter = {};
-#foreach my $selected_counter_name (split(',', $plugin->opts->counters)) {
-#	%counter_filter{''}
-#}
-
 #list_perf_objects();
 
 #load_perf_object_counter_descriptions('nfsv3');
