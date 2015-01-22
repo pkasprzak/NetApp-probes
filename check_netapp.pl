@@ -484,7 +484,7 @@ sub render_perf_data {
 				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
 				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'};
 				# Check for unit
-				if (exists($counter->{'unit'})) {
+				if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
 					$probe_output .= $counter->{'unit'};
 				}
 				$probe_output .= ", ";
@@ -1390,6 +1390,13 @@ $plugin->add_arg(
 	default 	=> 'nagios'
 );
 
+$plugin->add_arg(
+	spec 		=> 'units|u=s',
+	help 		=> "Append units to metrics (default: yes).\n",
+	required 	=> 0,
+	default 	=> 'yes'
+);
+
 $plugin->getopts;
 
 # Signal handler - TERM
@@ -1446,7 +1453,7 @@ our $perf_object_counter_descriptions = {};
 our $static_system_stats = get_static_system_stats();
 $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
-#list_perf_objects();
+list_perf_objects();
 
 #load_perf_object_counter_descriptions('nfsv3');
 #load_perf_object_counter_descriptions('vfiler');
@@ -1454,6 +1461,9 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 #load_perf_object_counter_descriptions('aggregate');
 #load_perf_object_counter_descriptions('processor');
 #load_perf_object_counter_descriptions('system');
+
+load_perf_object_counter_descriptions('cifs');
+
 
 
 # Select the stats object
