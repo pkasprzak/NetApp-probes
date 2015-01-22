@@ -124,9 +124,7 @@ our %unit_map = (	'none'			=> '',
 					'percent'		=> '%',
 					'kb_per_sec'	=> 'kb/s',
 					'sec'			=> 's'
-	)
-
-
+	);
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
@@ -392,7 +390,7 @@ sub get_unit {
 	my $perf_object 	= shift;
 	
 	my $orig_unit_name			= $perf_object_counter_descriptions->{$perf_object}->{$counter_name}->{'unit'};
-	my $transformed_unit_name 	= '?'
+	my $transformed_unit_name 	= '?';
 
 	if (exists($unit_map{$orig_unit_name})) {
 		$transformed_unit_name = $unit_map{$orig_unit_name};
@@ -640,7 +638,7 @@ sub get_system_perf_stats {
 
 		push (@derived_perf_data,	{	'name' 	=> 'uptime', 
 										'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data),
-										'unit'	=> get_unit('uptime', 'system')};
+										'unit'	=> get_unit('uptime', 'system')});
 
 		push (@derived_perf_data,	{	'name' 	=> 'time', 
 										'value' => calc_counter_value('time', 	'system', $current_perf_data, $old_perf_data)});
