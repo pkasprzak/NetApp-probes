@@ -826,6 +826,87 @@ sub get_nfsv3_perf_stats {
 	}
 }
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Get cifs performance stats
+
+sub get_cifs_perf_stats {
+
+	$log->info("Getting performance stats for cifs...");
+
+	our $tmp_dir;
+	my $tmp_file = "$tmp_dir/" . "check_netapp.get_cifs_perf_stats.json";
+
+	my $request	= NaElement->new('perf-object-get-instances');
+	$request->child_add_string('objectname', 'cifs');
+
+	my $counters = NaElement->new('counters');
+
+	$counters->child_add_string('counter', 'cifs_ops');
+
+	#  ----- nfs v3 reads -----
+
+	$counters->child_add_string('counter', 'cifs_read_latency');
+#	$counters->child_add_string('counter', 'cifs_avg_read_latency_base');
+	$counters->child_add_string('counter', 'cifs_read_ops');
+
+	#  ----- nfs v3 writes -----
+
+	$counters->child_add_string('counter', 'cifs_write_latency');
+#	$counters->child_add_string('counter', 'cifs_avg_write_latency_base');
+	$counters->child_add_string('counter', 'cifs_write_ops');
+
+	$request->child_add($counters);
+
+	my $result 				= call_api($request);
+	my $current_perf_data 	= {};
+
+	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+
+	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+
+		my $counter_name 	= $_->child_get_string('name');
+		my $counter_value 	= $_->child_get_string('value');
+
+		$current_perf_data->{$counter_name} = $counter_value;
+	}
+
+	# Load old counters from file and persist new ones insted
+
+	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+
+	write_hash_to_file($tmp_file, $current_perf_data);
+
+	# Calculate latencies / op rates
+	if (%$old_perf_data) {
+
+		my @derived_perf_data = ();
+
+		push (@derived_perf_data,	{	'name' 	=> 'read_latency', 
+										'value' => calc_counter_value('cifs_read_latency', 		'cifs', $current_perf_data, $old_perf_data),
+										'unit'  => get_unit('cifs_read_latency', 'cifs')});
+
+		push (@derived_perf_data,	{	'name'	=> 'write_latency',
+										'value' => calc_counter_value('cifs_write_latency', 	'cifs', $current_perf_data, $old_perf_data),
+										'unit'  => get_unit('cifs_write_latency', 'cifs')});
+
+		push (@derived_perf_data,	{	'name'	=> 'ops_rate',
+										'value' => calc_counter_value('cifs_ops', 				'cifs', $current_perf_data, $old_perf_data),
+										'unit'  => get_unit('cifs_ops', 'cifs')});
+
+		push (@derived_perf_data,	{	'name'	=> 'read_ops_rate',
+										'value' => calc_counter_value('cifs_read_ops', 			'cifs', $current_perf_data, $old_perf_data),
+										'unit'  => get_unit('cifs_read_ops', 'cifs')});
+
+		push (@derived_perf_data,	{	'name'	=> 'write_ops_rate',
+										'value' => calc_counter_value('cifs_write_ops', 		'cifs', $current_perf_data, $old_perf_data),
+										'unit'  => get_unit('cifs_write_ops', 'cifs')});
+
+		render_perf_data(\@derived_perf_data);
+	}
+}
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Get aggregate performance stats
 
@@ -1480,6 +1561,10 @@ foreach my $stat (@selected_stats) {
 
 		case /nfsv3/i {
 			get_nfsv3_perf_stats();
+		}
+
+		case /cifs/i {
+			get_cifs_perf_stats();
 		}
 
 		case /processor/i {
