@@ -115,6 +115,20 @@ Log::Log4perl::init(\$log4j_conf);
 our $log = Log::Log4perl::get_logger("GWDG::NetApp");
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Unit map
+
+our %unit_map = (	'none'			=> '',
+					'per_sec'		=> 's',
+					'millisec'		=> 'ms',
+					'microsec'		=> 'us',
+					'percent'		=> '%',
+					'kb_per_sec'	=> 'kb/s',
+					'sec'			=> 's'
+	)
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
 
 sub call_api {
@@ -367,6 +381,27 @@ sub calc_counter_value {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get unit of a counter value based on it's description
+
+sub get_unit {
+
+	our $perf_object_counter_descriptions;
+	our %unit_map;
+
+	my $counter_name	= shift;
+	my $perf_object 	= shift;
+	
+	my $orig_unit_name			= $perf_object_counter_descriptions->{$perf_object}->{$counter_name}->{'unit'};
+	my $transformed_unit_name 	= '?'
+
+	if (exists($unit_map{$orig_unit_name})) {
+		$transformed_unit_name = $unit_map{$orig_unit_name};
+	}
+
+	return $transformed_unit_name;
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Read hash from file (in JSON format)
 
 sub read_hash_from_file {
@@ -604,7 +639,8 @@ sub get_system_perf_stats {
 		# ----- Global system counter -----
 
 		push (@derived_perf_data,	{	'name' 	=> 'uptime', 
-										'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data)});
+										'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data),
+										'unit'	=> get_unit('uptime', 'system')};
 
 		push (@derived_perf_data,	{	'name' 	=> 'time', 
 										'value' => calc_counter_value('time', 	'system', $current_perf_data, $old_perf_data)});
