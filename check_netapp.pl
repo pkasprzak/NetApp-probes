@@ -49,6 +49,7 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
+# - Add units to metrics on demand
 #
 
 
@@ -1348,37 +1349,37 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 
 # Select the stats object
-my @selected_stats = split(',', lc($plugin->opts->stats));
+my @selected_stats = split(',', $plugin->opts->stats);
 
 foreach my $stat (@selected_stats) {
-	switch (lc($stat)) {
+	switch ($stat) {
 
-		case 'aggregate' {
+		case /aggregate/i {
 			my ($name, $instance) = split('=', $stat);
 			# aggr_SUBSAS01
 			get_aggregate_perf_stats($instance);
 		}
 
-		case 'nfsv3' {
+		case /nfsv3/i {
 			get_nfsv3_perf_stats();
 		}
 
-		case 'processor' {
+		case /processor/i {
 			get_processor_perf_stats();
 		}
 
-		case 'system' {
+		case /system/i {
 			get_system_perf_stats();
 		}
 
-		case 'volume' {
+		case /volume/i {
 			my ($name, $instance) = split('=', $stat);
 			get_volume_perf_stats($instance);
 		}
 
 		else {
 			# Unknown / unsupoorted format
-			$log->error("Unkown stat name [$stat] => ignoring!");
+			$log->error("Unknown stat name [$stat] => ignoring!");
 		}
 	}
 }
