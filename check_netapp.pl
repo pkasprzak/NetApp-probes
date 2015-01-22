@@ -118,14 +118,14 @@ our $log = Log::Log4perl::get_logger("GWDG::NetApp");
 # Unit map
 
 our %unit_map = (	'none'			=> '',
-					'per_sec'		=> 's',
+					'per_sec'		=> 'op/s',
 					'millisec'		=> 'ms',
 					'microsec'		=> 'us',
 					'percent'		=> '%',
 					'kb_per_sec'	=> 'kb/s',
 					'sec'			=> 's'
 	);
-
+		
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
 
@@ -482,7 +482,12 @@ sub render_perf_data {
 		case 'nagios' {
 			for my $counter (@filtered_perf_data) {
 				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'} . ", ";
+				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'};
+				# Check for unit
+				if (exists($counter->{'unit'})) {
+					$probe_output .= $counter->{'unit'};
+				}
+				$probe_output .= ", ";
 			}
 		}
 
