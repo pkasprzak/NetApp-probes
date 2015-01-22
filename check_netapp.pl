@@ -434,7 +434,7 @@ sub render_perf_data {
 		@filtered_perf_data = @$perf_data;
 	} else {
 		foreach my $counter (@$perf_data) {
-			if ($counter->{'name'} in @counter_names) {
+			if ($counter->{'name'} ~~ @counter_names) {
 				push(@filtered_perf_data, $counter);
 			}
 		}
@@ -1348,7 +1348,7 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 
 # Select the stats object
-my @selected_stats = split(',', lc($plugin->opts->stats);
+my @selected_stats = split(',', lc($plugin->opts->stats));
 
 foreach my $stat (@selected_stats) {
 	switch (lc($stat)) {
