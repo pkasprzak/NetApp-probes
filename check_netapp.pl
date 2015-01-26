@@ -49,7 +49,8 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
-# - Add units to metrics on demand
+# - Hostname should be part of tmp file names
+# - Add ability to add thresholds to metrics on which the probe can output status warning / critical (with appropriate message)
 #
 
 
@@ -125,6 +126,42 @@ our %unit_map = (	'none'			=> '',
 					'kb_per_sec'	=> 'KB/s',
 					'sec'			=> 's'
 	);
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Create tmp file name from some identifiers
+
+sub get_tmp_file {
+
+	our $plugin;
+
+	# Array of identifiers to be concatenated in the file name
+	my $identifiers = shift;
+
+	# Instance to use (i.e. aggregate / volume name, etc.)
+	my $instance 	= shift;
+
+	my $prefix		= 'check_netapp_fas';
+	my $postfix		= '.json';
+	my $separator	= '_';
+
+	my $tmp_file 	= $plugin->opts->tmp_dir . '/' . $prefix . '.' . $plugin->opts->hostname . '.';
+
+	foreach my $identifier (@$identifiers) {
+		$tmp_file .= $identifier . $separator;
+	}
+
+	# Remove last separator
+	$tmp_file = substr($tmp_file, 0, length($tmp_file) - 1);
+
+	if ($instance) {
+		$tmp_file .= '.' . $instance;
+	}
+
+	$tmp_file .= $postfix;
+
+	$log->debug("Created tmp file name: $tmp_file");
+	return $tmp_file;
+}
 		
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
@@ -152,7 +189,6 @@ sub call_api {
 
 	return $result;
 }
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
@@ -184,8 +220,10 @@ sub load_perf_object_counter_descriptions {
 	$log->info("Loading performance counter descriptions for object: $perf_object");
 
 	# Try to load from file first
-	our $tmp_dir;
-	my $cache_file = "$tmp_dir/" . "check_netapp.perf_object_counter_descriptions.$perf_object.json";
+
+	my @identifiers = ('perf', 'object', 'counter', 'descriptions');
+	my $cache_file = get_tmp_file (\@identifiers, $perf_object);
+
 	my $counter_descriptions = read_hash_from_file($cache_file, 0);
 
 	if (! %$counter_descriptions) {
@@ -507,8 +545,8 @@ sub get_static_system_stats {
 
 	$log->info("Getting basic system stats...");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_static_system_stats.json";
+	my @identifiers = ('static', 'system', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers);
 
 	# Try to load old counters from file and persist new ones insted
 	my $static_system_stats = read_hash_from_file($tmp_file, 0);
@@ -564,8 +602,8 @@ sub get_system_perf_stats {
 
 	$log->info("Getting performance stats for system...");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_system_perf_stats.json";
+	my @identifiers = ('system', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'system');
@@ -752,10 +790,10 @@ sub get_system_perf_stats {
 
 sub get_nfsv3_perf_stats {
 
-	$log->info("Getting performance stats for nfs v3...");
+	$log->info("Getting performance stats for nfsv3...");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_nfsv3_perf_stats.json";
+	my @identifiers = ('nfsv3', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'nfsv3');
@@ -834,8 +872,8 @@ sub get_cifs_perf_stats {
 
 	$log->info("Getting performance stats for cifs...");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_cifs_perf_stats.json";
+	my @identifiers = ('cifs', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'cifs');
@@ -916,8 +954,8 @@ sub get_aggregate_perf_stats {
 
 	$log->info("Getting performance stats for aggregate: $aggregate");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_aggregate_perf_stats.$aggregate.json";
+	my @identifiers = ('aggregate', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers, $aggregate);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'aggregate');
@@ -997,8 +1035,8 @@ sub get_volume_perf_stats {
 
 	$log->info("Getting performance stats for volume: $volume");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_volume_perf_stats.$volume.json";
+	my @identifiers = ('volume', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers, $volume);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'volume');
@@ -1315,8 +1353,8 @@ sub get_processor_perf_stats {
 
 	$log->info("Getting performance stats for processors...");
 
-	our $tmp_dir;
-	my $tmp_file = "$tmp_dir/" . "check_netapp.get_processor_perf_stats.json";
+	my @identifiers = ('processor', 'perf', 'stats');
+	my $tmp_file = get_tmp_file (\@identifiers);
 
 	my $request	= NaElement->new('perf-object-get-instances');
 	$request->child_add_string('objectname', 'processor');
@@ -1498,7 +1536,7 @@ alarm($plugin->opts->timeout);
 
 # tmp directory
 our $tmp_dir = $plugin->opts->tmp_dir;
-$log->info("Using '$tmp_dir' as directory form temp files.");
+$log->info("Using '$tmp_dir' as directory for temp files.");
 
 # Returned probe output
 our $probe_output = '';
