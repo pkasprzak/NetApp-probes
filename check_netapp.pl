@@ -49,7 +49,6 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
-# - Hostname should be part of tmp file names
 # - Add ability to add thresholds to metrics on which the probe can output status warning / critical (with appropriate message)
 #
 
@@ -76,7 +75,7 @@ use NaElement;
 
 # Standard variables used in Nagios::Plugin constructor
 my $PROGNAME	= 'check_netapp';
-my $VERSION		= '0.1';
+my $VERSION		= '1.0';
 my $DESCRIPTION	= 'Probe for checking a NetApp filer. Examples:\n'													.
 					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'			.
 					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'							.
