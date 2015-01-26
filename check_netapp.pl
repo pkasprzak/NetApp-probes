@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -X
+#!/usr/bin/env perl -w
 #
 # Nagios probe for checking a NetApp filer
 #
@@ -510,7 +510,7 @@ sub render_perf_data {
 			}
 		}
 	}
-	my $filtered_counter_num = length(@$perf_data) - length(@filtered_perf_data);
+	my $filtered_counter_num = scalar(@$perf_data) - scalar(@filtered_perf_data);
 	$log->info("Filtered [$filtered_counter_num] counter due to cli selection");
 
 	# Render metrics according to seleced format
@@ -1450,7 +1450,7 @@ our $plugin = Nagios::Plugin->new (	usage 		=> "Usage: %s <-H <hostname> -p <por
 $plugin->add_arg(
 	spec 		=> 'hostname|H=s',
 	help 		=> "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
-	required 	=> 0,
+	required 	=> 1,
 	default 	=> 'localhost'
 );
 
