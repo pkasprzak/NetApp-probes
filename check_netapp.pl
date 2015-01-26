@@ -23,7 +23,7 @@
 #
 # - lwp-useragent
 # - xml-parser
-# - Nagios::Plugin
+# - Monitoring::Plugin
 # - Log::Log4perl
 #
 # e.g.:
@@ -32,7 +32,7 @@
 # port install p5.16-xml-parser
 #
 # perl -MCPAN -e shell
-# cpan> install Nagios::Plugin
+# cpan> install Monitoring::Plugin
 # cpan> install Log::Log4perl
 # cpan> install JSON
 # cpan> install File::Slurp
@@ -64,7 +64,7 @@ use Clone qw(clone);
 
 # Need to be installed from CPAN
 use File::Slurp;
-use Nagios::Plugin;
+use Monitoring::Plugin;
 use Log::Log4perl;
 use JSON;
 
@@ -73,7 +73,7 @@ use lib "./NetApp";
 use NaServer;
 use NaElement;
 
-# Standard variables used in Nagios::Plugin constructor
+# Standard variables used in Monitoring::Plugin constructor
 my $PROGNAME	= 'check_netapp';
 my $VERSION		= '1.0';
 my $DESCRIPTION	= 'Probe for checking a NetApp filer. Examples:\n'													.
@@ -486,7 +486,7 @@ sub write_hash_to_file {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Render perf metrics in hash to something nagios can understand
+# Render perf metrics in hash
 
 sub render_perf_data {
 
@@ -1435,15 +1435,15 @@ sub get_processor_perf_stats {
 
 $log->info("Starting probe '$PROGNAME'...");
 
-# Create Nagios::Plugin instance
-our $plugin = Nagios::Plugin->new (	usage 		=> "Usage: %s <-H <hostname> -p <port>>|<-f <file>>",
-									shortname	=> $SHORTNAME,
-									version		=> $VERSION,
-									blurb		=> $DESCRIPTION,
-									extra		=> $EXTRA_DESC,
-									license		=> $LICENSE,
-									plugin 		=> $PROGNAME
-								);
+# Create Monitoring::Plugin instance
+our $plugin = Monitoring::Plugin->new (	usage 		=> "Usage: %s <-H <hostname> -p <port>>|<-f <file>>",
+										shortname	=> $SHORTNAME,
+										version		=> $VERSION,
+										blurb		=> $DESCRIPTION,
+										extra		=> $EXTRA_DESC,
+										license		=> $LICENSE,
+										plugin 		=> $PROGNAME
+									);
 
 
 # Define additional arguments
@@ -1522,13 +1522,13 @@ $plugin->getopts;
 local $SIG{ALRM} = sub {
 	local $SIG{TERM} = 'IGNORE';
 	kill TERM => -$$;
-	$plugin->nagios_exit(CRITICAL, "Data could not be collected in the allocated time (" . $plugin->opts->timeout . "s)");
+	$plugin->plugin_exit(CRITICAL, "Data could not be collected in the allocated time (" . $plugin->opts->timeout . "s)");
 };
 
 local $SIG{TERM} = sub {
 	local $SIG{TERM} = 'IGNORE';
 	kill TERM => -$$;
-	$plugin->nagios_die("Plugin received TERM signal.");
+	$plugin->plugin_die("Plugin received TERM signal.");
 };
 
 alarm($plugin->opts->timeout);
@@ -1630,7 +1630,7 @@ switch (lc($plugin->opts->output)) {
 	case 'nagios' {
 		# Remove last two characters
 		$probe_output = substr($probe_output, 0, length($probe_output) - 2);
-		$plugin->nagios_exit(OK, $probe_output);
+		$plugin->plugin_exit(OK, $probe_output);
 	}
 
 	else {
