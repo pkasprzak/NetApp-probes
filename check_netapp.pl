@@ -50,8 +50,11 @@
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
 # - Add ability to add thresholds to metrics on which the probe can output status warning / critical (with appropriate message)
+# - Fix probe start without parameters -> help page
+# - Probe should return critical state if filer can not be reached
+# - Test for mandatory parameters
+# - Set units for processor performance counter and equivalent definitions
 #
-
 
 use strict;
 use warnings;
@@ -486,11 +489,53 @@ sub write_hash_to_file {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Check perf metrics in hash for warning / critical ranges
+
+sub check_perf_data {
+
+	our $probe_status_output;
+	our $plugin;
+	our (%warning_defs, %critical_defs);
+	our (@warning, @critical);
+
+	my $perf_data 		= shift;
+	my $perf_data_count = scalar @$perf_data;
+
+	$log->info("Checking [$perf_data_count] perf counter metrics for critical / warning ranges...");
+
+	foreach my $counter (@$perf_data) {
+		# Check for warning ranges
+		if (exists($warning_defs{$counter->{'name'}})) {
+
+			$plugin->set_thresholds(warning => $warning_defs{$counter->{'name'}});
+			my $check_result = $plugin->check_threshold($counter->{'value'});
+			if ($check_result == WARNING) {
+				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in ' . $warning_defs{$counter->{'name'}};
+				$log->debug('Warning: ' . $message);
+				push(@warning, $message);
+			}
+		}
+		# Check for critical ranges
+		if (exists($critical_defs{$counter->{'name'}})) {
+
+			$plugin->set_thresholds(critical => $critical_defs{$counter->{'name'}});
+			my $check_result = $plugin->check_threshold($counter->{'value'});
+			if ($check_result == CRITICAL) {
+				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in ' . $warning_defs{$counter->{'name'}};
+				$log->debug('Critical: ' . $message);
+				push(@critical, $message);
+			}
+		}
+
+	}
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Render perf metrics in hash
 
 sub render_perf_data {
 
-	our $probe_output;
+	our $probe_metric_output;
 	our $plugin;
 
 	my $perf_data 		= shift;
@@ -500,8 +545,8 @@ sub render_perf_data {
 
 	# Filter list of counters based on cli selection
 	my @filtered_perf_data = ();
-	my @counter_names = split(',', $plugin->opts->counters);
-	if ($plugin->opts->counters eq 'all') {
+	my @counter_names = split(',', $plugin->opts->filter);
+	if ($plugin->opts->filter eq 'all') {
 		@filtered_perf_data = @$perf_data;
 	} else {
 		foreach my $counter (@$perf_data) {
@@ -519,12 +564,12 @@ sub render_perf_data {
 		case 'nagios' {
 			for my $counter (@filtered_perf_data) {
 				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-				$probe_output .= $counter->{'name'} . "=" . $counter->{'value'};
+				$probe_metric_output .= $counter->{'name'} . "=" . $counter->{'value'};
 				# Check for unit
 				if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
-					$probe_output .= $counter->{'unit'};
+					$probe_metric_output .= $counter->{'unit'};
 				}
-				$probe_output .= ", ";
+				$probe_metric_output .= ", ";
 			}
 		}
 
@@ -534,7 +579,7 @@ sub render_perf_data {
 		}
 	}
 
-	$log->debug("Current rendered text:\n$probe_output");
+	$log->debug("Current rendered text:\n$probe_metric_output");
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1488,7 +1533,7 @@ $plugin->add_arg(
 );
 
 $plugin->add_arg(
-	spec 		=> 'counters|c=s',
+	spec 		=> 'filter|f=s',
 	help 		=> "Select the performance counter(s) to use by providing a column separated list of their names (default: all).\n",
 	required 	=> 0,
 	default 	=> 'all'
@@ -1515,6 +1560,20 @@ $plugin->add_arg(
 	default 	=> 'yes'
 );
 
+$plugin->add_arg(
+	spec 		=> 'warn|w=s',
+	help 		=> "Define performance counters and ranges to warn on (default: none).\n",
+	required 	=> 0,
+	default 	=> ''
+);
+
+$plugin->add_arg(
+	spec 		=> 'critical|c=s',
+	help 		=> "Define performance counters and ranges to critical on (default: none).\n",
+	required 	=> 0,
+	default 	=> ''
+);
+
 $plugin->getopts;
 
 # Signal handler - TERM
@@ -1533,25 +1592,46 @@ local $SIG{TERM} = sub {
 
 alarm($plugin->opts->timeout);
 
-# tmp directory
+# Print tmp directory
 our $tmp_dir = $plugin->opts->tmp_dir;
 $log->info("Using '$tmp_dir' as directory for temp files.");
 
+# Create hash of performance counters to warn on
+
+our %warning_defs = ();
+
+foreach my $counter_def (split(',', $plugin->opts->warn)) {
+	my ($counter_name, $counter_range) = split('=', $counter_def);
+	$warning_defs{$counter_name} = $counter_range;
+}
+
+# Create hash of performance counters to critical on
+
+our %critical_defs = ();
+
+foreach my $counter_def (split(',', $plugin->opts->warn)) {
+	my ($counter_name, $counter_range) = split('=', $counter_def);
+	$critical_defs{$counter_name} = $counter_range;
+}
+
 # Returned probe output
-our $probe_output = '';
+our $probe_metric_output = '';
+
+# Warning / chritical / standard messages from check_perf_data()
+our (@warning, @critical, @standard) = ((), (), ());
 
 # Initialize the probe output string according to selected format
-switch (lc($plugin->opts->output)) {
+#switch (lc($plugin->opts->output)) {
+#
+#	case 'nagios' {
+#		$probe_metric_output = '| ';
+#	}
 
-	case 'nagios' {
-		$probe_output = '| ';
-	}
-
-	else {
-		# Unknown / unsupoorted format
-		$log->error("Unkown format => not initializing rendering!");
-	}
-}
+#	else {
+#		# Unknown / unsupoorted format
+#		$log->error("Unkown format => not initializing rendering!");
+#	}
+#}
 
 # Get server context
 
@@ -1571,7 +1651,7 @@ our $perf_object_counter_descriptions = {};
 our $static_system_stats = get_static_system_stats();
 $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
-list_perf_objects();
+#list_perf_objects();
 
 #load_perf_object_counter_descriptions('nfsv3');
 #load_perf_object_counter_descriptions('vfiler');
@@ -1580,9 +1660,7 @@ list_perf_objects();
 #load_perf_object_counter_descriptions('processor');
 #load_perf_object_counter_descriptions('system');
 
-load_perf_object_counter_descriptions('cifs');
-
-
+#load_perf_object_counter_descriptions('cifs');
 
 # Select the stats object
 my @selected_stats = split(',', $plugin->opts->stats);
@@ -1628,9 +1706,27 @@ foreach my $stat (@selected_stats) {
 switch (lc($plugin->opts->output)) {
 
 	case 'nagios' {
+		
+		my $probe_status_output = '';
+		my $status_code = OK;
+
 		# Remove last two characters
-		$probe_output = substr($probe_output, 0, length($probe_output) - 2);
-		$plugin->plugin_exit(OK, $probe_output);
+		$probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
+		
+		if (@warning) {
+			$probe_status_output .= 'warning: ' . join(',', @warning);
+			$status_code = WARNING;
+		}
+
+		if (@critical) {
+			if (@warning) {
+				$probe_status_output .= ', ';
+			}
+			$probe_status_output .= 'critical: ' . join(',', @critical);
+			$status_code = CRITICAL;
+		}
+
+		$plugin->plugin_exit($status_code, $probe_status_output . '|' . $probe_metric_output);
 	}
 
 	else {
