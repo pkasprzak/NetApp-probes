@@ -60,9 +60,7 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
-# - Fix probe start without parameters -> help page
 # - Probe should return critical state if filer can not be reached
-# - Test for mandatory parameters
 # - Set units for processor performance counter and equivalent definitions
 #
 
@@ -142,7 +140,13 @@ our %unit_map = (	'none'			=> '',
 # ---------------------------------------------------------------------------------------------------------------------
 # Helper functions
 
-sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
+sub trim { 
+	my $s = shift;
+	if ($s) { 
+		$s =~ s/^\s+|\s+$//g;
+	} 
+	return $s
+};
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Create tmp file name from some identifiers
@@ -1580,14 +1584,14 @@ $plugin->add_arg(
 	spec 		=> 'warn|w=s',
 	help 		=> "Define performance counters and ranges to warn on (default: none).\n",
 	required 	=> 0,
-	default 	=> ''
+	default 	=> undef
 );
 
 $plugin->add_arg(
 	spec 		=> 'critical|c=s',
 	help 		=> "Define performance counters and ranges to critical on (default: none).\n",
 	required 	=> 0,
-	default 	=> ''
+	default 	=> undef
 );
 
 $plugin->getopts;
@@ -1616,18 +1620,22 @@ $log->info("Using '$tmp_dir' as directory for temp files.");
 
 our %warning_defs = ();
 
-foreach my $counter_def (split(',', $plugin->opts->warn)) {
-	my ($counter_name, $counter_range) = split('=', $counter_def);
-	$warning_defs{trim($counter_name)} = trim($counter_range);
+if ($plugin->opts->warn) {
+	foreach my $counter_def (split(',', $plugin->opts->warn)) {
+		my ($counter_name, $counter_range) = split('=', $counter_def);
+		$warning_defs{trim($counter_name)} = trim($counter_range);
+	}
 }
 
 # Create hash of performance counters to critical on
 
 our %critical_defs = ();
 
-foreach my $counter_def (split(',', $plugin->opts->critical)) {
-	my ($counter_name, $counter_range) = split('=', $counter_def);
-	$critical_defs{trim($counter_name)} = trim($counter_range);
+if ($plugin->opts->critical) {
+	foreach my $counter_def (split(',', $plugin->opts->critical)) {
+		my ($counter_name, $counter_range) = split('=', $counter_def);
+		$critical_defs{trim($counter_name)} = trim($counter_range);
+	}
 }
 
 # Returned probe output
