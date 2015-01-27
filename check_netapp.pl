@@ -44,6 +44,17 @@
 # - Download netapp-manageability-sdk-5.3 from http://support.netapp.com/NOW/cgi-bin/software
 # - Copy lib/perl/NetApp directory with the perl modules to somewhere where it can be found by perl
 #
+#
+# Range format (for -w or -c):
+# ----------------------------
+#
+# Generate an alert if x...
+# 10		< 0 or > 10, (outside the range of {0 .. 10})
+# 10:		< 10, (outside {10 .. ∞})
+# ~:10		> 10, (outside the range of {-∞ .. 10})
+# 10:20		< 10 or > 20, (outside the range of {10 .. 20})
+# @10:20	≥ 10 and ≤ 20, (inside the range of {10 .. 20})
+#
 # ToDo:
 # -----
 #
@@ -128,6 +139,11 @@ our %unit_map = (	'none'			=> '',
 					'kb_per_sec'	=> 'KB/s',
 					'sec'			=> 's'
 	);
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Helper functions
+
+sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Create tmp file name from some identifiers
@@ -510,7 +526,7 @@ sub check_perf_data {
 			$plugin->set_thresholds(warning => $warning_defs{$counter->{'name'}});
 			my $check_result = $plugin->check_threshold($counter->{'value'});
 			if ($check_result == WARNING) {
-				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in ' . $warning_defs{$counter->{'name'}};
+				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $warning_defs{$counter->{'name'}} . '"';
 				$log->debug('Warning: ' . $message);
 				push(@warning, $message);
 			}
@@ -521,7 +537,7 @@ sub check_perf_data {
 			$plugin->set_thresholds(critical => $critical_defs{$counter->{'name'}});
 			my $check_result = $plugin->check_threshold($counter->{'value'});
 			if ($check_result == CRITICAL) {
-				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in ' . $warning_defs{$counter->{'name'}};
+				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $critical_defs{$counter->{'name'}} . '"';
 				$log->debug('Critical: ' . $message);
 				push(@critical, $message);
 			}
@@ -540,6 +556,9 @@ sub render_perf_data {
 
 	my $perf_data 		= shift;
 	my $perf_data_count = scalar @$perf_data;
+
+	# Check perf data for warnings / criticals
+	check_perf_data($perf_data);
 
 	$log->info("Rendering [$perf_data_count] perf counter metrics for output format [$plugin->opts->output]...");
 
@@ -1478,6 +1497,7 @@ sub get_processor_perf_stats {
 # Main
 # ---------------------------------------------------------------------------------------------------------------------
 
+$log->info('-' x 120);
 $log->info("Starting probe '$PROGNAME'...");
 
 # Create Monitoring::Plugin instance
@@ -1602,16 +1622,16 @@ our %warning_defs = ();
 
 foreach my $counter_def (split(',', $plugin->opts->warn)) {
 	my ($counter_name, $counter_range) = split('=', $counter_def);
-	$warning_defs{$counter_name} = $counter_range;
+	$warning_defs{trim($counter_name)} = trim($counter_range);
 }
 
 # Create hash of performance counters to critical on
 
 our %critical_defs = ();
 
-foreach my $counter_def (split(',', $plugin->opts->warn)) {
+foreach my $counter_def (split(',', $plugin->opts->critical)) {
 	my ($counter_name, $counter_range) = split('=', $counter_def);
-	$critical_defs{$counter_name} = $counter_range;
+	$critical_defs{trim($counter_name)} = trim($counter_range);
 }
 
 # Returned probe output
@@ -1619,19 +1639,6 @@ our $probe_metric_output = '';
 
 # Warning / chritical / standard messages from check_perf_data()
 our (@warning, @critical, @standard) = ((), (), ());
-
-# Initialize the probe output string according to selected format
-#switch (lc($plugin->opts->output)) {
-#
-#	case 'nagios' {
-#		$probe_metric_output = '| ';
-#	}
-
-#	else {
-#		# Unknown / unsupoorted format
-#		$log->error("Unkown format => not initializing rendering!");
-#	}
-#}
 
 # Get server context
 
@@ -1714,7 +1721,7 @@ switch (lc($plugin->opts->output)) {
 		$probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
 		
 		if (@warning) {
-			$probe_status_output .= 'warning: ' . join(',', @warning);
+			$probe_status_output .= 'Warning: ' . join(', ', @warning);
 			$status_code = WARNING;
 		}
 
@@ -1722,11 +1729,11 @@ switch (lc($plugin->opts->output)) {
 			if (@warning) {
 				$probe_status_output .= ', ';
 			}
-			$probe_status_output .= 'critical: ' . join(',', @critical);
+			$probe_status_output .= 'Critical: ' . join(', ', @critical);
 			$status_code = CRITICAL;
 		}
 
-		$plugin->plugin_exit($status_code, $probe_status_output . '|' . $probe_metric_output);
+		$plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_output);
 	}
 
 	else {
