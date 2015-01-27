@@ -60,7 +60,6 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
-# - Add ability to add thresholds to metrics on which the probe can output status warning / critical (with appropriate message)
 # - Fix probe start without parameters -> help page
 # - Probe should return critical state if filer can not be reached
 # - Test for mandatory parameters
@@ -1501,7 +1500,7 @@ $log->info('-' x 120);
 $log->info("Starting probe '$PROGNAME'...");
 
 # Create Monitoring::Plugin instance
-our $plugin = Monitoring::Plugin->new (	usage 		=> "Usage: %s <-H <hostname> -p <port>>|<-f <file>>",
+our $plugin = Monitoring::Plugin->new (	usage 		=> "Usage: %s -H <hostname> -U <user> -P <password> -s <stats1[=instance1],...> [-f <perf_counter1>,<perf_counter2>,...] [-w <perf_counter1>=<range1>,...] [-c <perf_counter1>=<range1>,...]",
 										shortname	=> $SHORTNAME,
 										version		=> $VERSION,
 										blurb		=> $DESCRIPTION,
@@ -1516,21 +1515,18 @@ $plugin->add_arg(
 	spec 		=> 'hostname|H=s',
 	help 		=> "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
 	required 	=> 1,
-	default 	=> 'localhost'
 );
 
 $plugin->add_arg(
 	spec 		=> 'user|U=s',
 	help 		=> "User name for login (default: none).\n",
-	required 	=> 0,
-	default		=> ''
+	required 	=> 1,
 );
 
 $plugin->add_arg(
 	spec 		=> 'password|P=s',
 	help 		=> "Password for login (default: none).\n",
-	required 	=> 0,
-	default 	=> ''
+	required 	=> 1,
 );
 
 $plugin->add_arg(
