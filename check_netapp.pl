@@ -60,7 +60,6 @@
 #
 # - Fix Perl interpreter call
 # - Make it possible to filter counter (white list)
-# - Probe should return critical state if filer can not be reached
 # - Set units for processor performance counter and equivalent definitions
 #
 
@@ -591,7 +590,7 @@ sub render_perf_data {
 				if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
 					$probe_metric_output .= $counter->{'unit'};
 				}
-				$probe_metric_output .= ", ";
+				$probe_metric_output .= " ";
 			}
 		}
 
