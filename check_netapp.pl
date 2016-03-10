@@ -25,10 +25,11 @@
 # - xml-parser
 # - Monitoring::Plugin
 # - Log::Log4perl
+# - Net::SSLeay
 #
 # e.g.:
 #
-# port istall p5.16-lwp-useragent-determined
+# port install p5.16-lwp-useragent-determined
 # port install p5.16-xml-parser
 #
 # perl -MCPAN -e shell
@@ -36,8 +37,8 @@
 # cpan> install Log::Log4perl
 # cpan> install JSON
 # cpan> install File::Slurp
-# cpan> install Switch                 	(CHORNY/Switch-2.17.tar.gz)
-# cpan> install Clone 					(GARU/Clone-0.37.tar.gz)
+# cpan> install Switch                  (CHORNY/Switch-2.17.tar.gz)
+# cpan> install Clone                   (GARU/Clone-0.37.tar.gz)
 #
 # 2.) Get NetApp perl SDK
 #
@@ -49,11 +50,11 @@
 # ----------------------------
 #
 # Generate an alert if x...
-# 10		< 0 or > 10, (outside the range of {0 .. 10})
-# 10:		< 10, (outside {10 .. ∞})
-# ~:10		> 10, (outside the range of {-∞ .. 10})
-# 10:20		< 10 or > 20, (outside the range of {10 .. 20})
-# @10:20	≥ 10 and ≤ 20, (inside the range of {10 .. 20})
+# 10        < 0 or > 10, (outside the range of {0 .. 10})
+# 10:       < 10, (outside {10 .. ∞})
+# ~:10      > 10, (outside the range of {-∞ .. 10})
+# 10:20     < 10 or > 20, (outside the range of {10 .. 20})
+# @10:20    ≥ 10 and ≤ 20, (inside the range of {10 .. 20})
 #
 # ToDo:
 # -----
@@ -84,16 +85,16 @@ use NaServer;
 use NaElement;
 
 # Standard variables used in Monitoring::Plugin constructor
-my $PROGNAME	= 'check_netapp';
-my $VERSION		= '1.0';
-my $DESCRIPTION	= 'Probe for checking a NetApp filer. Examples:\n'													.
-					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'			.
-					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'							.
-					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s nfsv3\n'								.
-					'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s system';
-my $EXTRA_DESC	= '';
-my $SHORTNAME	= 'CHECK_NETAPP';
-my $LICENSE		= 'This nagios plugin is free software, and comes with ABSOLUTELY NO WARRANTY.
+my $PROGNAME    = 'check_netapp';
+my $VERSION     = '1.0';
+my $DESCRIPTION = 'Probe for checking a NetApp filer. Examples:\n'                                                  .
+                    'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'         .
+                    'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'                          .
+                    'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s nfsv3\n'                              .
+                    'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s system';
+my $EXTRA_DESC  = '';
+my $SHORTNAME   = 'CHECK_NETAPP';
+my $LICENSE     = 'This nagios plugin is free software, and comes with ABSOLUTELY NO WARRANTY.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -105,19 +106,19 @@ Copyright 2014 Piotr Kasprzak';
 
 my $log4j_conf = q(
 
-#	log4perl.category.GWDG.NetApp = DEBUG, Screen, Logfile
-	log4perl.category.GWDG.NetApp = DEBUG, Logfile
+#   log4perl.category.GWDG.NetApp = DEBUG, Screen, Logfile
+    log4perl.category.GWDG.NetApp = DEBUG, Logfile
 
 
- 	log4perl.appender.Logfile = Log::Log4perl::Appender::File
- 	log4perl.appender.Logfile.filename = /var/log/check_netapp.log
- 	log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
- 	log4perl.appender.Logfile.layout.ConversionPattern = [%d %F:%M:%L] %m%n
+    log4perl.appender.Logfile = Log::Log4perl::Appender::File
+    log4perl.appender.Logfile.filename = /var/log/check_netapp.log
+    log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Logfile.layout.ConversionPattern = [%d %F:%M:%L] %m%n
 
-	log4perl.appender.Screen = Log::Log4perl::Appender::Screen
-	log4perl.appender.Screen.stderr = 0
-	log4perl.appender.Screen.layout = Log::Log4perl::Layout::PatternLayout
-	log4perl.appender.Screen.layout.ConversionPattern = [%d %F:%M:%L] %m%n
+    log4perl.appender.Screen = Log::Log4perl::Appender::Screen
+    log4perl.appender.Screen.stderr = 0
+    log4perl.appender.Screen.layout = Log::Log4perl::Layout::PatternLayout
+    log4perl.appender.Screen.layout.ConversionPattern = [%d %F:%M:%L] %m%n
 );
 
 Log::Log4perl::init(\$log4j_conf);
@@ -127,24 +128,24 @@ our $log = Log::Log4perl::get_logger("GWDG::NetApp");
 # ---------------------------------------------------------------------------------------------------------------------
 # Unit map
 
-our %unit_map = (	'none'			=> '',
-					'per_sec'		=> 'op/s',
-					'millisec'		=> 'ms',
-					'microsec'		=> 'us',
-					'percent'		=> '%',
-					'kb_per_sec'	=> 'KB/s',
-					'sec'			=> 's'
-	);
+our %unit_map = (   'none'          => '',
+                    'per_sec'       => 'op/s',
+                    'millisec'      => 'ms',
+                    'microsec'      => 'us',
+                    'percent'       => '%',
+                    'kb_per_sec'    => 'KB/s',
+                    'sec'           => 's'
+    );
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Helper functions
 
 sub trim { 
-	my $s = shift;
-	if ($s) { 
-		$s =~ s/^\s+|\s+$//g;
-	} 
-	return $s
+    my $s = shift;
+    if ($s) { 
+        $s =~ s/^\s+|\s+$//g;
+    } 
+    return $s
 };
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -152,62 +153,62 @@ sub trim {
 
 sub get_tmp_file {
 
-	our $plugin;
+    our $plugin;
 
-	# Array of identifiers to be concatenated in the file name
-	my $identifiers = shift;
+    # Array of identifiers to be concatenated in the file name
+    my $identifiers = shift;
 
-	# Instance to use (i.e. aggregate / volume name, etc.)
-	my $instance 	= shift;
+    # Instance to use (i.e. aggregate / volume name, etc.)
+    my $instance    = shift;
 
-	my $prefix		= 'check_netapp_fas';
-	my $postfix		= '.json';
-	my $separator	= '_';
+    my $prefix      = 'check_netapp_fas';
+    my $postfix     = '.json';
+    my $separator   = '_';
 
-	my $tmp_file 	= $plugin->opts->tmp_dir . '/' . $prefix . '.' . $plugin->opts->hostname . '.';
+    my $tmp_file    = $plugin->opts->tmp_dir . '/' . $prefix . '.' . $plugin->opts->hostname . '.';
 
-	foreach my $identifier (@$identifiers) {
-		$tmp_file .= $identifier . $separator;
-	}
+    foreach my $identifier (@$identifiers) {
+        $tmp_file .= $identifier . $separator;
+    }
 
-	# Remove last separator
-	$tmp_file = substr($tmp_file, 0, length($tmp_file) - 1);
+    # Remove last separator
+    $tmp_file = substr($tmp_file, 0, length($tmp_file) - 1);
 
-	if ($instance) {
-		$tmp_file .= '.' . $instance;
-	}
+    if ($instance) {
+        $tmp_file .= '.' . $instance;
+    }
 
-	$tmp_file .= $postfix;
+    $tmp_file .= $postfix;
 
-	$log->debug("Created tmp file name: $tmp_file");
-	return $tmp_file;
+    $log->debug("Created tmp file name: $tmp_file");
+    return $tmp_file;
 }
-		
+        
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
 
 sub call_api {
 
-	my $request = shift;
+    my $request = shift;
 
-	$log->info("API request: " . $request->{name});
+    $log->info("API request: " . $request->{name});
 
-	if ($log->is_debug()) {
-		$log->debug("API request content:\n" . $request->sprintf());
-	}
-	
-	my $result = $main::filer->invoke_elem($request);
+    if ($log->is_debug()) {
+        $log->debug("API request content:\n" . $request->sprintf());
+    }
+    
+    my $result = $main::filer->invoke_elem($request);
 
-	if ($log->is_debug()) {
-		$log->debug("API response content:\n" . $result->sprintf())
-	}
+    if ($log->is_debug()) {
+        $log->debug("API response content:\n" . $result->sprintf())
+    }
 
-	# Check for error
-	if ($result->results_status() eq 'failed') {
-		$log->error("API request failed: " . $result->results_reason());
-	}
+    # Check for error
+    if ($result->results_status() eq 'failed') {
+        $log->error("API request failed: " . $result->results_reason());
+    }
 
-	return $result;
+    return $result;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -215,17 +216,17 @@ sub call_api {
 
 sub list_perf_objects {
 
-	$log->info("Listing performance objects...");
+    $log->info("Listing performance objects...");
 
-	my $request	= NaElement->new('perf-object-list-info');
-	my $result 	= call_api($request);
+    my $request = NaElement->new('perf-object-list-info');
+    my $result  = call_api($request);
 
-	foreach ($result->child_get('objects')->children_get()) {
-		my $name 	= $_->child_get_string('name');
-		my $level 	= $_->child_get_string('privilege-level');
+    foreach ($result->child_get('objects')->children_get()) {
+        my $name    = $_->child_get_string('name');
+        my $level   = $_->child_get_string('privilege-level');
 
-		$log->info(sprintf("%30s: %10s", $name, $level));
-	}
+        $log->info(sprintf("%30s: %10s", $name, $level));
+    }
 
 }
 
@@ -234,86 +235,86 @@ sub list_perf_objects {
 
 sub load_perf_object_counter_descriptions {
 
-	my $perf_object = shift;
-	our $perf_object_counter_descriptions;
+    my $perf_object = shift;
+    our $perf_object_counter_descriptions;
 
-	$log->info("Loading performance counter descriptions for object: $perf_object");
+    $log->info("Loading performance counter descriptions for object: $perf_object");
 
-	# Try to load from file first
+    # Try to load from file first
 
-	my @identifiers = ('perf', 'object', 'counter', 'descriptions');
-	my $cache_file = get_tmp_file (\@identifiers, $perf_object);
+    my @identifiers = ('perf', 'object', 'counter', 'descriptions');
+    my $cache_file = get_tmp_file (\@identifiers, $perf_object);
 
-	my $counter_descriptions = read_hash_from_file($cache_file, 0);
+    my $counter_descriptions = read_hash_from_file($cache_file, 0);
 
-	if (! %$counter_descriptions) {
+    if (! %$counter_descriptions) {
 
-		# No cache file yet -> load data from API and persist in file for later.
-		$log->info("No cache file found, loading from API...");
+        # No cache file yet -> load data from API and persist in file for later.
+        $log->info("No cache file found, loading from API...");
 
-		my $request	= NaElement->new('perf-object-counter-list-info');
-		$request->child_add_string('objectname', $perf_object);
+        my $request = NaElement->new('perf-object-counter-list-info');
+        $request->child_add_string('objectname', $perf_object);
 
-		my $result 	= call_api($request);
+        my $result  = call_api($request);
 
-		foreach my $na_element ($result->child_get('counters')->children_get()) {
+        foreach my $na_element ($result->child_get('counters')->children_get()) {
 
-			my $counter_description = {};
+            my $counter_description = {};
 
-			$counter_description->{'name'} 				= $na_element->child_get_string('name');
-			$counter_description->{'privilege_level'} 	= $na_element->child_get_string('privilege-level');
-			$counter_description->{'desc'} 				= $na_element->child_get_string('desc');
-			$counter_description->{'properties'} 		= $na_element->child_get_string('properties');
-			$counter_description->{'unit'} 				= $na_element->child_get_string('unit');
-			$counter_description->{'base_counter'}		= $na_element->child_get_string('base-counter');
-			$counter_description->{'type'}				= $na_element->child_get_string('type');
+            $counter_description->{'name'}              = $na_element->child_get_string('name');
+            $counter_description->{'privilege_level'}   = $na_element->child_get_string('privilege-level');
+            $counter_description->{'desc'}              = $na_element->child_get_string('desc');
+            $counter_description->{'properties'}        = $na_element->child_get_string('properties');
+            $counter_description->{'unit'}              = $na_element->child_get_string('unit');
+            $counter_description->{'base_counter'}      = $na_element->child_get_string('base-counter');
+            $counter_description->{'type'}              = $na_element->child_get_string('type');
 
-			# Need special processing stuff for processor objects
-			if (! ($perf_object eq 'processor')) {
-				# Standard counter description
-				$counter_descriptions->{$counter_description->{'name'}} = $counter_description;
-			} else {
-				# Get number of processors
-				our $static_system_stats;
-				my $processor_count = $static_system_stats->{'num_processors'};
+            # Need special processing stuff for processor objects
+            if (! ($perf_object eq 'processor')) {
+                # Standard counter description
+                $counter_descriptions->{$counter_description->{'name'}} = $counter_description;
+            } else {
+                # Get number of processors
+                our $static_system_stats;
+                my $processor_count = $static_system_stats->{'num_processors'};
 
-				# Create for each processor instance a set of counter descriptions
-				foreach my $processor (0 .. $processor_count - 1) {
+                # Create for each processor instance a set of counter descriptions
+                foreach my $processor (0 .. $processor_count - 1) {
 
-					unless (defined $counter_description->{'type'} and $counter_description->{'type'} eq 'array') {
+                    unless (defined $counter_description->{'type'} and $counter_description->{'type'} eq 'array') {
 
-						my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'};
-						my $new_counter_description	= clone($counter_description);
+                        my $new_counter_name        = 'processor' . $processor . '_' . $counter_description->{'name'};
+                        my $new_counter_description = clone($counter_description);
 
-						$new_counter_description->{'name'} = $new_counter_name;
-						$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
+                        $new_counter_description->{'name'} = $new_counter_name;
+                        $counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
 
-					} else {
-						# For type == array we need to process the labels
-						my @labels = split(',', $na_element->child_get('labels')->child_get_string('label-info'));
-						foreach my $label (@labels) {
+                    } else {
+                        # For type == array we need to process the labels
+                        my @labels = split(',', $na_element->child_get('labels')->child_get_string('label-info'));
+                        foreach my $label (@labels) {
 
-							my $new_counter_name 		= 'processor' . $processor . '_' . $counter_description->{'name'} . '_' . $label;
-							my $new_base_counter		= 'processor' . $processor . '_' . $counter_description->{'base_counter'};
-							my $new_counter_description	= clone($counter_description);
+                            my $new_counter_name        = 'processor' . $processor . '_' . $counter_description->{'name'} . '_' . $label;
+                            my $new_base_counter        = 'processor' . $processor . '_' . $counter_description->{'base_counter'};
+                            my $new_counter_description = clone($counter_description);
 
-							$new_counter_description->{'name'} 			= $new_counter_name;
-							$new_counter_description->{'base_counter'}	= $new_base_counter;
+                            $new_counter_description->{'name'}          = $new_counter_name;
+                            $new_counter_description->{'base_counter'}  = $new_base_counter;
 
-							delete $new_counter_description->{'type'};
-							$counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
-						}
-					}
-				}
-			}
-		}
+                            delete $new_counter_description->{'type'};
+                            $counter_descriptions->{$new_counter_description->{'name'}} = $new_counter_description;
+                        }
+                    }
+                }
+            }
+        }
 
-		# Persist to file
-		write_hash_to_file($cache_file, $counter_descriptions);
-	}
+        # Persist to file
+        write_hash_to_file($cache_file, $counter_descriptions);
+    }
 
-	# Make descriptions available for later
-	$perf_object_counter_descriptions->{$perf_object} = $counter_descriptions;
+    # Make descriptions available for later
+    $perf_object_counter_descriptions->{$perf_object} = $counter_descriptions;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -321,119 +322,119 @@ sub load_perf_object_counter_descriptions {
 
 sub calc_counter_value {
 
-	my $counter_name		= shift;
-	my $perf_object 		= shift;
-	my $current_perf_data 	= shift;
-	my $old_perf_data 		= shift;
+    my $counter_name        = shift;
+    my $perf_object         = shift;
+    my $current_perf_data   = shift;
+    my $old_perf_data       = shift;
 
-	our $perf_object_counter_descriptions;
+    our $perf_object_counter_descriptions;
 
-	$log->debug("Calculating value of counter '$counter_name' of perf object '$perf_object'");
+    $log->debug("Calculating value of counter '$counter_name' of perf object '$perf_object'");
 
-	# Get counter descriptions. If no descriptions available yet, load them!
-	if (! $perf_object_counter_descriptions->{$perf_object}) {
-		load_perf_object_counter_descriptions($perf_object);
-	} 
+    # Get counter descriptions. If no descriptions available yet, load them!
+    if (! $perf_object_counter_descriptions->{$perf_object}) {
+        load_perf_object_counter_descriptions($perf_object);
+    } 
 
-	my $counter_descriptions 	= $perf_object_counter_descriptions->{$perf_object};
-	my $counter_description 	= $counter_descriptions->{$counter_name};
+    my $counter_descriptions    = $perf_object_counter_descriptions->{$perf_object};
+    my $counter_description     = $counter_descriptions->{$counter_name};
 
-	# Check, if there is a description for the selected counter
-	if (! defined $counter_description or ! %$counter_description) {
-		$log->error("No description found for counter '$counter_name' of perf object '$perf_object'!");
-		return;
-	} else {
-		$log->debug("Using description:\n" . Dumper($counter_description));
-	}
+    # Check, if there is a description for the selected counter
+    if (! defined $counter_description or ! %$counter_description) {
+        $log->error("No description found for counter '$counter_name' of perf object '$perf_object'!");
+        return;
+    } else {
+        $log->debug("Using description:\n" . Dumper($counter_description));
+    }
 
-	# Finally, calculate the value depending on the description
-	switch (lc($counter_description->{'properties'})) {
+    # Finally, calculate the value depending on the description
+    switch (lc($counter_description->{'properties'})) {
 
-		case 'raw' {
-			# Just return raw value
-			return $current_perf_data->{$counter_name};
-		}
+        case 'raw' {
+            # Just return raw value
+            return $current_perf_data->{$counter_name};
+        }
 
-		case 'rate' {
-			# (c2 - c1) / (t2 - t1)
-			my $time_delta 		= $current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
-			my $counter_value 	= ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) / $time_delta;
+        case 'rate' {
+            # (c2 - c1) / (t2 - t1)
+            my $time_delta      = $current_perf_data->{'timestamp'} - $old_perf_data->{'timestamp'};
+            my $counter_value   = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) / $time_delta;
 
-			return $counter_value;
-		}
+            return $counter_value;
+        }
 
-		case 'delta' {
-			# c2 - c1
-			my $counter_value 	= $current_perf_data->{$counter_name} - $old_perf_data->{$counter_name};
+        case 'delta' {
+            # c2 - c1
+            my $counter_value   = $current_perf_data->{$counter_name} - $old_perf_data->{$counter_name};
 
-			return $counter_value;
-		}
+            return $counter_value;
+        }
 
-		case 'average' {
-			# (c2 - c1) / (b2 - b1)
-			my $base_counter_name = $counter_description->{'base_counter'};
-			$log->debug("Using base counter '$base_counter_name' for calculations.");
+        case 'average' {
+            # (c2 - c1) / (b2 - b1)
+            my $base_counter_name = $counter_description->{'base_counter'};
+            $log->debug("Using base counter '$base_counter_name' for calculations.");
 
-			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-				$log->error("Base counter not available in perf data!");
-				return 0;
-			}
+            unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
+                $log->error("Base counter not available in perf data!");
+                return 0;
+            }
 
-			my $current_base_counter_data	= $current_perf_data->{$base_counter_name};
-			my $old_base_counter_data 		= $old_perf_data->{$base_counter_name};
+            my $current_base_counter_data   = $current_perf_data->{$base_counter_name};
+            my $old_base_counter_data       = $old_perf_data->{$base_counter_name};
 
-			if ($current_base_counter_data == $old_base_counter_data) {
-				$log->warn("Old and new base counter equal -> returning 0 to prevent division by zero.");
-				return 0;
-			}
+            if ($current_base_counter_data == $old_base_counter_data) {
+                $log->warn("Old and new base counter equal -> returning 0 to prevent division by zero.");
+                return 0;
+            }
 
-			my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
-								($current_base_counter_data - $old_base_counter_data);
+            my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
+                                ($current_base_counter_data - $old_base_counter_data);
 
-			return $counter_value;
-		}
+            return $counter_value;
+        }
 
-		case 'percent' {
-			# 100 * (c2 - c1) / (b2 - b1)
-			my $base_counter_name = $counter_description->{'base_counter'};
-			$log->debug("Using base counter '$base_counter_name' for calculations.");
+        case 'percent' {
+            # 100 * (c2 - c1) / (b2 - b1)
+            my $base_counter_name = $counter_description->{'base_counter'};
+            $log->debug("Using base counter '$base_counter_name' for calculations.");
 
-			unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-				$log->error("Base counter not available in perf data!");
-				return 0;
-			}
+            unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
+                $log->error("Base counter not available in perf data!");
+                return 0;
+            }
 
-			my $current_base_counter_data	= $current_perf_data->{$base_counter_name};
-			my $old_base_counter_data 		= $old_perf_data->{$base_counter_name};
+            my $current_base_counter_data   = $current_perf_data->{$base_counter_name};
+            my $old_base_counter_data       = $old_perf_data->{$base_counter_name};
 
-			my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
-								($current_base_counter_data - $old_base_counter_data);
+            my $counter_value = ($current_perf_data->{$counter_name} - $old_perf_data->{$counter_name}) /
+                                ($current_base_counter_data - $old_base_counter_data);
 
-			return 100 * $counter_value;
-		}
+            return 100 * $counter_value;
+        }
 
-		case 'text' {
-			# Just text
-			return $current_perf_data->{$counter_name};
-		}
+        case 'text' {
+            # Just text
+            return $current_perf_data->{$counter_name};
+        }
 
-		case 'string' {
-			# Just text
-			return $current_perf_data->{$counter_name};
-		}
-	
-		case 'nodisp' {
-			# Used for calculations (average, percent), should not be displayed directly
-			$log->warn("This counter has the 'nodisp' property and should not be displayed directly!");
-			return $current_perf_data->{$counter_name};
-		}
+        case 'string' {
+            # Just text
+            return $current_perf_data->{$counter_name};
+        }
+    
+        case 'nodisp' {
+            # Used for calculations (average, percent), should not be displayed directly
+            $log->warn("This counter has the 'nodisp' property and should not be displayed directly!");
+            return $current_perf_data->{$counter_name};
+        }
 
-		else {
-			# Unknown properties value
-			$log->error("Unkown properties value, just returning the current counter value!");
-			return $current_perf_data->{$counter_name};
-		}
-	}
+        else {
+            # Unknown properties value
+            $log->error("Unkown properties value, just returning the current counter value!");
+            return $current_perf_data->{$counter_name};
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -441,20 +442,20 @@ sub calc_counter_value {
 
 sub get_unit {
 
-	our $perf_object_counter_descriptions;
-	our %unit_map;
+    our $perf_object_counter_descriptions;
+    our %unit_map;
 
-	my $counter_name	= shift;
-	my $perf_object 	= shift;
-	
-	my $orig_unit_name			= $perf_object_counter_descriptions->{$perf_object}->{$counter_name}->{'unit'};
-	my $transformed_unit_name 	= '?';
+    my $counter_name    = shift;
+    my $perf_object     = shift;
+    
+    my $orig_unit_name          = $perf_object_counter_descriptions->{$perf_object}->{$counter_name}->{'unit'};
+    my $transformed_unit_name   = '?';
 
-	if (exists($unit_map{$orig_unit_name})) {
-		$transformed_unit_name = $unit_map{$orig_unit_name};
-	}
+    if (exists($unit_map{$orig_unit_name})) {
+        $transformed_unit_name = $unit_map{$orig_unit_name};
+    }
 
-	return $transformed_unit_name;
+    return $transformed_unit_name;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -462,31 +463,31 @@ sub get_unit {
 
 sub read_hash_from_file {
 
-	my $file 						= shift;
-	my $delete_file_after_reading 	= shift;
+    my $file                        = shift;
+    my $delete_file_after_reading   = shift;
 
-	our $json_parser;
-	my $hash_data = {};
+    our $json_parser;
+    my $hash_data = {};
 
-	if (-f $file) {
+    if (-f $file) {
 
-		$log->debug("Loading data from file: $file");
-		my $hash_data_json = read_file($file);
+        $log->debug("Loading data from file: $file");
+        my $hash_data_json = read_file($file);
 
-		# Convert JSON to array
-		$hash_data = $json_parser->decode($hash_data_json);
+        # Convert JSON to array
+        $hash_data = $json_parser->decode($hash_data_json);
 
-		if ($log->is_debug()) {
-			$log->debug(Dumper($hash_data));
-		}
+        if ($log->is_debug()) {
+            $log->debug(Dumper($hash_data));
+        }
 
-		# Delete old file
-		if ($delete_file_after_reading) {
-			unlink $file;
-		}
-	}
+        # Delete old file
+        if ($delete_file_after_reading) {
+            unlink $file;
+        }
+    }
 
-	return $hash_data;
+    return $hash_data;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -494,16 +495,16 @@ sub read_hash_from_file {
 
 sub write_hash_to_file {
 
-	my $file 		= shift;
-	my $hash_data 	= shift;
+    my $file        = shift;
+    my $hash_data   = shift;
 
-	our $json_parser;
+    our $json_parser;
 
-	# Encode hash in JSON string
-	my $hash_data_json = $json_parser->pretty->encode($hash_data);
+    # Encode hash in JSON string
+    my $hash_data_json = $json_parser->pretty->encode($hash_data);
 
-	# Write to file
-	write_file($file, $hash_data_json);
+    # Write to file
+    write_file($file, $hash_data_json);
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -511,41 +512,41 @@ sub write_hash_to_file {
 
 sub check_perf_data {
 
-	our $probe_status_output;
-	our $plugin;
-	our (%warning_defs, %critical_defs);
-	our (@warning, @critical);
+    our $probe_status_output;
+    our $plugin;
+    our (%warning_defs, %critical_defs);
+    our (@warning, @critical);
 
-	my $perf_data 		= shift;
-	my $perf_data_count = scalar @$perf_data;
+    my $perf_data       = shift;
+    my $perf_data_count = scalar @$perf_data;
 
-	$log->info("Checking [$perf_data_count] perf counter metrics for critical / warning ranges...");
+    $log->info("Checking [$perf_data_count] perf counter metrics for critical / warning ranges...");
 
-	foreach my $counter (@$perf_data) {
-		# Check for warning ranges
-		if (exists($warning_defs{$counter->{'name'}})) {
+    foreach my $counter (@$perf_data) {
+        # Check for warning ranges
+        if (exists($warning_defs{$counter->{'name'}})) {
 
-			$plugin->set_thresholds(warning => $warning_defs{$counter->{'name'}});
-			my $check_result = $plugin->check_threshold($counter->{'value'});
-			if ($check_result == WARNING) {
-				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $warning_defs{$counter->{'name'}} . '"';
-				$log->debug('Warning: ' . $message);
-				push(@warning, $message);
-			}
-		}
-		# Check for critical ranges
-		if (exists($critical_defs{$counter->{'name'}})) {
+            $plugin->set_thresholds(warning => $warning_defs{$counter->{'name'}});
+            my $check_result = $plugin->check_threshold($counter->{'value'});
+            if ($check_result == WARNING) {
+                my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $warning_defs{$counter->{'name'}} . '"';
+                $log->debug('Warning: ' . $message);
+                push(@warning, $message);
+            }
+        }
+        # Check for critical ranges
+        if (exists($critical_defs{$counter->{'name'}})) {
 
-			$plugin->set_thresholds(critical => $critical_defs{$counter->{'name'}});
-			my $check_result = $plugin->check_threshold($counter->{'value'});
-			if ($check_result == CRITICAL) {
-				my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $critical_defs{$counter->{'name'}} . '"';
-				$log->debug('Critical: ' . $message);
-				push(@critical, $message);
-			}
-		}
+            $plugin->set_thresholds(critical => $critical_defs{$counter->{'name'}});
+            my $check_result = $plugin->check_threshold($counter->{'value'});
+            if ($check_result == CRITICAL) {
+                my $message = $counter->{'name'} . ' (' . $counter->{'value'} . ') in range "' . $critical_defs{$counter->{'name'}} . '"';
+                $log->debug('Critical: ' . $message);
+                push(@critical, $message);
+            }
+        }
 
-	}
+    }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -553,54 +554,54 @@ sub check_perf_data {
 
 sub render_perf_data {
 
-	our $probe_metric_output;
-	our $plugin;
+    our $probe_metric_output;
+    our $plugin;
 
-	my $perf_data 		= shift;
-	my $perf_data_count = scalar @$perf_data;
+    my $perf_data       = shift;
+    my $perf_data_count = scalar @$perf_data;
 
-	# Check perf data for warnings / criticals
-	check_perf_data($perf_data);
+    # Check perf data for warnings / criticals
+    check_perf_data($perf_data);
 
-	$log->info("Rendering [$perf_data_count] perf counter metrics for output format [$plugin->opts->output]...");
+    $log->info("Rendering [$perf_data_count] perf counter metrics for output format [$plugin->opts->output]...");
 
-	# Filter list of counters based on cli selection
-	my @filtered_perf_data = ();
-	my @counter_names = split(',', $plugin->opts->filter);
-	if ($plugin->opts->filter eq 'all') {
-		@filtered_perf_data = @$perf_data;
-	} else {
-		foreach my $counter (@$perf_data) {
-			if ($counter->{'name'} ~~ @counter_names) {
-				push(@filtered_perf_data, $counter);
-			}
-		}
-	}
-	my $filtered_counter_num = scalar(@$perf_data) - scalar(@filtered_perf_data);
-	$log->info("Filtered [$filtered_counter_num] counter due to cli selection");
+    # Filter list of counters based on cli selection
+    my @filtered_perf_data = ();
+    my @counter_names = split(',', $plugin->opts->filter);
+    if ($plugin->opts->filter eq 'all') {
+        @filtered_perf_data = @$perf_data;
+    } else {
+        foreach my $counter (@$perf_data) {
+            if ($counter->{'name'} ~~ @counter_names) {
+                push(@filtered_perf_data, $counter);
+            }
+        }
+    }
+    my $filtered_counter_num = scalar(@$perf_data) - scalar(@filtered_perf_data);
+    $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
 
-	# Render metrics according to seleced format
-	switch (lc($plugin->opts->output)) {
+    # Render metrics according to seleced format
+    switch (lc($plugin->opts->output)) {
 
-		case 'nagios' {
-			for my $counter (@filtered_perf_data) {
-				$log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-				$probe_metric_output .= $counter->{'name'} . "=" . $counter->{'value'};
-				# Check for unit
-				if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
-					$probe_metric_output .= $counter->{'unit'};
-				}
-				$probe_metric_output .= " ";
-			}
-		}
+        case 'nagios' {
+            for my $counter (@filtered_perf_data) {
+                $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+                $probe_metric_output .= $counter->{'name'} . "=" . $counter->{'value'};
+                # Check for unit
+                if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
+                    $probe_metric_output .= $counter->{'unit'};
+                }
+                $probe_metric_output .= " ";
+            }
+        }
 
-		else {
-			# Unknown / unsupoorted format
-			$log->error("Unkown format => not rendering!");
-		}
-	}
+        else {
+            # Unknown / unsupoorted format
+            $log->error("Unkown format => not rendering!");
+        }
+    }
 
-	$log->debug("Current rendered text:\n$probe_metric_output");
+    $log->debug("Current rendered text:\n$probe_metric_output");
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -608,56 +609,56 @@ sub render_perf_data {
 
 sub get_static_system_stats {
 
-	$log->info("Getting basic system stats...");
+    $log->info("Getting basic system stats...");
 
-	my @identifiers = ('static', 'system', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers);
+    my @identifiers = ('static', 'system', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
 
-	# Try to load old counters from file and persist new ones insted
-	my $static_system_stats = read_hash_from_file($tmp_file, 0);
+    # Try to load old counters from file and persist new ones insted
+    my $static_system_stats = read_hash_from_file($tmp_file, 0);
 
-	if (%$static_system_stats) {
-		return $static_system_stats;
-	}
+    if (%$static_system_stats) {
+        return $static_system_stats;
+    }
 
-	# No cache file -> get data from API
+    # No cache file -> get data from API
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'system');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'system');
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	# ----- Static system description information -----
+    # ----- Static system description information -----
 
-	$counters->child_add_string('counter', 'hostname');
-	$counters->child_add_string('counter', 'instance_name');
-	$counters->child_add_string('counter', 'instance_uuid');
-	$counters->child_add_string('counter', 'node_name');
-	$counters->child_add_string('counter', 'num_processors');
-	$counters->child_add_string('counter', 'ontap_version');
-	$counters->child_add_string('counter', 'serial_no');
-	$counters->child_add_string('counter', 'system_id');
-	$counters->child_add_string('counter', 'system_model');
+    $counters->child_add_string('counter', 'hostname');
+    $counters->child_add_string('counter', 'instance_name');
+    $counters->child_add_string('counter', 'instance_uuid');
+    $counters->child_add_string('counter', 'node_name');
+    $counters->child_add_string('counter', 'num_processors');
+    $counters->child_add_string('counter', 'ontap_version');
+    $counters->child_add_string('counter', 'serial_no');
+    $counters->child_add_string('counter', 'system_id');
+    $counters->child_add_string('counter', 'system_model');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	$static_system_stats	= {};
+    my $result              = call_api($request);
+    $static_system_stats    = {};
 
-	$static_system_stats->{'timestamp'} = $result->child_get_int('timestamp');
+    $static_system_stats->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$static_system_stats->{$counter_name} = $counter_value;
-	}
+        $static_system_stats->{$counter_name} = $counter_value;
+    }
 
-	# Persits data for next time
-	write_hash_to_file($tmp_file, $static_system_stats);
+    # Persits data for next time
+    write_hash_to_file($tmp_file, $static_system_stats);
 
-	return $static_system_stats;
+    return $static_system_stats;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -665,188 +666,188 @@ sub get_static_system_stats {
 
 sub get_system_perf_stats {
 
-	$log->info("Getting performance stats for system...");
+    $log->info("Getting performance stats for system...");
 
-	my @identifiers = ('system', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers);
+    my @identifiers = ('system', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'system');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'system');
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	# ----- Global system counter -----
+    # ----- Global system counter -----
 
-	$counters->child_add_string('counter', 'uptime');
-	$counters->child_add_string('counter', 'time');
+    $counters->child_add_string('counter', 'uptime');
+    $counters->child_add_string('counter', 'time');
 
-	# ----- Global CPU stats -----
+    # ----- Global CPU stats -----
 
-	$counters->child_add_string('counter', 'total_processor_busy');
-	$counters->child_add_string('counter', 'cpu_busy');
-	$counters->child_add_string('counter', 'cpu_elapsed_time');
-	$counters->child_add_string('counter', 'cpu_elapsed_time1');
-	$counters->child_add_string('counter', 'cpu_elapsed_time2');
-	$counters->child_add_string('counter', 'avg_processor_busy');
+    $counters->child_add_string('counter', 'total_processor_busy');
+    $counters->child_add_string('counter', 'cpu_busy');
+    $counters->child_add_string('counter', 'cpu_elapsed_time');
+    $counters->child_add_string('counter', 'cpu_elapsed_time1');
+    $counters->child_add_string('counter', 'cpu_elapsed_time2');
+    $counters->child_add_string('counter', 'avg_processor_busy');
 
-	# ----- Global HDD stats -----
+    # ----- Global HDD stats -----
 
-	$counters->child_add_string('counter', 'hdd_data_written');
-	$counters->child_add_string('counter', 'hdd_data_read');
+    $counters->child_add_string('counter', 'hdd_data_written');
+    $counters->child_add_string('counter', 'hdd_data_read');
 
-	$counters->child_add_string('counter', 'sys_read_latency');
-	$counters->child_add_string('counter', 'sys_avg_latency');
-	$counters->child_add_string('counter', 'sys_write_latency');
+    $counters->child_add_string('counter', 'sys_read_latency');
+    $counters->child_add_string('counter', 'sys_avg_latency');
+    $counters->child_add_string('counter', 'sys_write_latency');
 
-	$counters->child_add_string('counter', 'disk_data_written');
-	$counters->child_add_string('counter', 'disk_data_read');
+    $counters->child_add_string('counter', 'disk_data_written');
+    $counters->child_add_string('counter', 'disk_data_read');
 
-	# ----- Global network stats -----
+    # ----- Global network stats -----
 
-	$counters->child_add_string('counter', 'net_data_sent');
-	$counters->child_add_string('counter', 'net_data_recv');
+    $counters->child_add_string('counter', 'net_data_sent');
+    $counters->child_add_string('counter', 'net_data_recv');
 
-	# ----- Global protocol ops -----
+    # ----- Global protocol ops -----
 
-	$counters->child_add_string('counter', 'total_ops');
-	$counters->child_add_string('counter', 'cifs_ops');
-	$counters->child_add_string('counter', 'nfs_ops');
-	$counters->child_add_string('counter', 'write_ops');
-	$counters->child_add_string('counter', 'iscsi_ops');
-	$counters->child_add_string('counter', 'read_ops');
+    $counters->child_add_string('counter', 'total_ops');
+    $counters->child_add_string('counter', 'cifs_ops');
+    $counters->child_add_string('counter', 'nfs_ops');
+    $counters->child_add_string('counter', 'write_ops');
+    $counters->child_add_string('counter', 'iscsi_ops');
+    $counters->child_add_string('counter', 'read_ops');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$current_perf_data->{$counter_name} = $counter_value;
-	}
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
-		my @derived_perf_data = ();
-
-
-		# ----- Global system counter -----
-
-		push (@derived_perf_data,	{	'name' 	=> 'uptime', 
-										'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data),
-										'unit'	=> get_unit('uptime', 'system')});
-
-		push (@derived_perf_data,	{	'name' 	=> 'time', 
-										'value' => calc_counter_value('time', 	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('time', 'system')});
-
-		# ----- Global CPU stats -----
+        my @derived_perf_data = ();
 
 
-		push (@derived_perf_data,	{	'name' 	=> 'total_processor_busy', 
-										'value' => calc_counter_value('total_processor_busy', 	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('total_processor_busy', 'system')});
+        # ----- Global system counter -----
 
-		push (@derived_perf_data,	{	'name' 	=> 'cpu_busy', 
-										'value' => calc_counter_value('cpu_busy', 				'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cpu_busy', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'uptime', 
+                                        'value' => calc_counter_value('uptime', 'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('uptime', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time', 
-										'value' => calc_counter_value('cpu_elapsed_time', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cpu_elapsed_time', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'time', 
+                                        'value' => calc_counter_value('time',   'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('time', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time1', 
-										'value' => calc_counter_value('cpu_elapsed_time1', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cpu_elapsed_time1', 'system')});
+        # ----- Global CPU stats -----
 
-		push (@derived_perf_data,	{	'name' 	=> 'cpu_elapsed_time2', 
-										'value' => calc_counter_value('cpu_elapsed_time2', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cpu_elapsed_time2', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'avg_processor_busy', 
-										'value' => calc_counter_value('avg_processor_busy', 	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('avg_processor_busy', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'total_processor_busy', 
+                                        'value' => calc_counter_value('total_processor_busy',   'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('total_processor_busy', 'system')});
 
-		# ----- Global HDD stats -----
+        push (@derived_perf_data,   {   'name'  => 'cpu_busy', 
+                                        'value' => calc_counter_value('cpu_busy',               'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cpu_busy', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'hdd_data_written', 
-										'value' => calc_counter_value('hdd_data_written', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('hdd_data_written', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'cpu_elapsed_time', 
+                                        'value' => calc_counter_value('cpu_elapsed_time',       'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cpu_elapsed_time', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'hdd_data_read', 
-										'value' => calc_counter_value('hdd_data_read', 			'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('hdd_data_read', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'cpu_elapsed_time1', 
+                                        'value' => calc_counter_value('cpu_elapsed_time1',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cpu_elapsed_time1', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'total_processor_busy', 
-										'value' => calc_counter_value('total_processor_busy', 	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('total_processor_busy', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'cpu_elapsed_time2', 
+                                        'value' => calc_counter_value('cpu_elapsed_time2',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cpu_elapsed_time2', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'sys_read_latency', 
-										'value' => calc_counter_value('sys_read_latency', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('sys_read_latency', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'avg_processor_busy', 
+                                        'value' => calc_counter_value('avg_processor_busy',     'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('avg_processor_busy', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'sys_write_latency', 
-										'value' => calc_counter_value('sys_write_latency', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('sys_write_latency', 'system')});
+        # ----- Global HDD stats -----
 
-		push (@derived_perf_data,	{	'name' 	=> 'disk_data_written', 
-										'value' => calc_counter_value('disk_data_written', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('disk_data_written', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'hdd_data_written', 
+                                        'value' => calc_counter_value('hdd_data_written',       'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('hdd_data_written', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'disk_data_read', 
-										'value' => calc_counter_value('disk_data_read', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('disk_data_read', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'hdd_data_read', 
+                                        'value' => calc_counter_value('hdd_data_read',          'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('hdd_data_read', 'system')});
 
-		# ----- Global network stats -----
+        push (@derived_perf_data,   {   'name'  => 'total_processor_busy', 
+                                        'value' => calc_counter_value('total_processor_busy',   'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('total_processor_busy', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'net_data_sent', 
-										'value' => calc_counter_value('net_data_sent', 	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('net_data_sent', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'sys_read_latency', 
+                                        'value' => calc_counter_value('sys_read_latency',       'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('sys_read_latency', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'net_data_recv', 
-										'value' => calc_counter_value('net_data_recv',	'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('net_data_recv', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'sys_write_latency', 
+                                        'value' => calc_counter_value('sys_write_latency',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('sys_write_latency', 'system')});
 
-		# ----- Global protocol ops -----
+        push (@derived_perf_data,   {   'name'  => 'disk_data_written', 
+                                        'value' => calc_counter_value('disk_data_written',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('disk_data_written', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'total_ops', 
-										'value' => calc_counter_value('total_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('total_ops', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'disk_data_read', 
+                                        'value' => calc_counter_value('disk_data_read',         'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('disk_data_read', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_ops', 
-										'value' => calc_counter_value('cifs_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_ops', 'system')});
+        # ----- Global network stats -----
 
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_ops', 
-										'value' => calc_counter_value('nfs_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfs_ops', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'net_data_sent', 
+                                        'value' => calc_counter_value('net_data_sent',  'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('net_data_sent', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'write_ops', 
-										'value' => calc_counter_value('write_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('write_ops', 'system')});
+        push (@derived_perf_data,   {   'name'  => 'net_data_recv', 
+                                        'value' => calc_counter_value('net_data_recv',  'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('net_data_recv', 'system')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_ops', 
-										'value' => calc_counter_value('iscsi_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('iscsi_ops', 'system')});
+        # ----- Global protocol ops -----
 
-		push (@derived_perf_data,	{	'name' 	=> 'read_ops', 
-										'value' => calc_counter_value('read_ops', 		'system', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('read_ops', 'system')});
-		
-		render_perf_data(\@derived_perf_data);
-	}
+        push (@derived_perf_data,   {   'name'  => 'total_ops', 
+                                        'value' => calc_counter_value('total_ops',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('total_ops', 'system')});
+
+        push (@derived_perf_data,   {   'name'  => 'cifs_ops', 
+                                        'value' => calc_counter_value('cifs_ops',       'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_ops', 'system')});
+
+        push (@derived_perf_data,   {   'name'  => 'nfs_ops', 
+                                        'value' => calc_counter_value('nfs_ops',        'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfs_ops', 'system')});
+
+        push (@derived_perf_data,   {   'name'  => 'write_ops', 
+                                        'value' => calc_counter_value('write_ops',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('write_ops', 'system')});
+
+        push (@derived_perf_data,   {   'name'  => 'iscsi_ops', 
+                                        'value' => calc_counter_value('iscsi_ops',      'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('iscsi_ops', 'system')});
+
+        push (@derived_perf_data,   {   'name'  => 'read_ops', 
+                                        'value' => calc_counter_value('read_ops',       'system', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('read_ops', 'system')});
+        
+        render_perf_data(\@derived_perf_data);
+    }
 }
 
 
@@ -855,78 +856,78 @@ sub get_system_perf_stats {
 
 sub get_nfsv3_perf_stats {
 
-	$log->info("Getting performance stats for nfsv3...");
+    $log->info("Getting performance stats for nfsv3...");
 
-	my @identifiers = ('nfsv3', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers);
+    my @identifiers = ('nfsv3', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'nfsv3');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'nfsv3');
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	$counters->child_add_string('counter', 'nfsv3_ops');
+    $counters->child_add_string('counter', 'nfsv3_ops');
 
-	#  ----- nfs v3 reads -----
+    #  ----- nfs v3 reads -----
 
-	$counters->child_add_string('counter', 'nfsv3_read_latency');
-	$counters->child_add_string('counter', 'nfsv3_avg_read_latency_base');
-	$counters->child_add_string('counter', 'nfsv3_read_ops');
+    $counters->child_add_string('counter', 'nfsv3_read_latency');
+    $counters->child_add_string('counter', 'nfsv3_avg_read_latency_base');
+    $counters->child_add_string('counter', 'nfsv3_read_ops');
 
-	#  ----- nfs v3 writes -----
+    #  ----- nfs v3 writes -----
 
-	$counters->child_add_string('counter', 'nfsv3_write_latency');
-	$counters->child_add_string('counter', 'nfsv3_avg_write_latency_base');
-	$counters->child_add_string('counter', 'nfsv3_write_ops');
+    $counters->child_add_string('counter', 'nfsv3_write_latency');
+    $counters->child_add_string('counter', 'nfsv3_avg_write_latency_base');
+    $counters->child_add_string('counter', 'nfsv3_write_ops');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$current_perf_data->{$counter_name} = $counter_value;
-	}
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
-		my @derived_perf_data = ();
+        my @derived_perf_data = ();
 
-		push (@derived_perf_data,	{	'name' 	=> 'read_latency', 
-										'value' => calc_counter_value('nfsv3_read_latency', 	'nfsv3', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfsv3_read_latency', 'nfsv3')});
+        push (@derived_perf_data,   {   'name'  => 'read_latency', 
+                                        'value' => calc_counter_value('nfsv3_read_latency',     'nfsv3', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfsv3_read_latency', 'nfsv3')});
 
-		push (@derived_perf_data,	{	'name'	=> 'write_latency',
-										'value' => calc_counter_value('nfsv3_write_latency', 	'nfsv3', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfsv3_write_latency', 'nfsv3')});
+        push (@derived_perf_data,   {   'name'  => 'write_latency',
+                                        'value' => calc_counter_value('nfsv3_write_latency',    'nfsv3', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfsv3_write_latency', 'nfsv3')});
 
-		push (@derived_perf_data,	{	'name'	=> 'ops_rate',
-										'value' => calc_counter_value('nfsv3_ops', 				'nfsv3', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfsv3_ops', 'nfsv3')});
+        push (@derived_perf_data,   {   'name'  => 'ops_rate',
+                                        'value' => calc_counter_value('nfsv3_ops',              'nfsv3', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfsv3_ops', 'nfsv3')});
 
-		push (@derived_perf_data,	{	'name'	=> 'read_ops_rate',
-										'value' => calc_counter_value('nfsv3_read_ops', 		'nfsv3', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfsv3_read_ops', 'nfsv3')});
+        push (@derived_perf_data,   {   'name'  => 'read_ops_rate',
+                                        'value' => calc_counter_value('nfsv3_read_ops',         'nfsv3', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfsv3_read_ops', 'nfsv3')});
 
-		push (@derived_perf_data,	{	'name'	=> 'write_ops_rate',
-										'value' => calc_counter_value('nfsv3_write_ops', 		'nfsv3', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfsv3_write_ops', 'nfsv3')});
+        push (@derived_perf_data,   {   'name'  => 'write_ops_rate',
+                                        'value' => calc_counter_value('nfsv3_write_ops',        'nfsv3', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfsv3_write_ops', 'nfsv3')});
 
-		render_perf_data(\@derived_perf_data);
-	}
+        render_perf_data(\@derived_perf_data);
+    }
 }
 
 
@@ -935,78 +936,78 @@ sub get_nfsv3_perf_stats {
 
 sub get_cifs_perf_stats {
 
-	$log->info("Getting performance stats for cifs...");
+    $log->info("Getting performance stats for cifs...");
 
-	my @identifiers = ('cifs', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers);
+    my @identifiers = ('cifs', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'cifs');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'cifs');
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	$counters->child_add_string('counter', 'cifs_ops');
+    $counters->child_add_string('counter', 'cifs_ops');
 
-	#  ----- nfs v3 reads -----
+    #  ----- nfs v3 reads -----
 
-	$counters->child_add_string('counter', 'cifs_read_latency');
-#	$counters->child_add_string('counter', 'cifs_avg_read_latency_base');
-	$counters->child_add_string('counter', 'cifs_read_ops');
+    $counters->child_add_string('counter', 'cifs_read_latency');
+#   $counters->child_add_string('counter', 'cifs_avg_read_latency_base');
+    $counters->child_add_string('counter', 'cifs_read_ops');
 
-	#  ----- nfs v3 writes -----
+    #  ----- nfs v3 writes -----
 
-	$counters->child_add_string('counter', 'cifs_write_latency');
-#	$counters->child_add_string('counter', 'cifs_avg_write_latency_base');
-	$counters->child_add_string('counter', 'cifs_write_ops');
+    $counters->child_add_string('counter', 'cifs_write_latency');
+#   $counters->child_add_string('counter', 'cifs_avg_write_latency_base');
+    $counters->child_add_string('counter', 'cifs_write_ops');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$current_perf_data->{$counter_name} = $counter_value;
-	}
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
-		my @derived_perf_data = ();
+        my @derived_perf_data = ();
 
-		push (@derived_perf_data,	{	'name' 	=> 'read_latency', 
-										'value' => calc_counter_value('cifs_read_latency', 		'cifs', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_read_latency', 'cifs')});
+        push (@derived_perf_data,   {   'name'  => 'read_latency', 
+                                        'value' => calc_counter_value('cifs_read_latency',      'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_read_latency', 'cifs')});
 
-		push (@derived_perf_data,	{	'name'	=> 'write_latency',
-										'value' => calc_counter_value('cifs_write_latency', 	'cifs', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_write_latency', 'cifs')});
+        push (@derived_perf_data,   {   'name'  => 'write_latency',
+                                        'value' => calc_counter_value('cifs_write_latency',     'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_write_latency', 'cifs')});
 
-		push (@derived_perf_data,	{	'name'	=> 'ops_rate',
-										'value' => calc_counter_value('cifs_ops', 				'cifs', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_ops', 'cifs')});
+        push (@derived_perf_data,   {   'name'  => 'ops_rate',
+                                        'value' => calc_counter_value('cifs_ops',               'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_ops', 'cifs')});
 
-		push (@derived_perf_data,	{	'name'	=> 'read_ops_rate',
-										'value' => calc_counter_value('cifs_read_ops', 			'cifs', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_read_ops', 'cifs')});
+        push (@derived_perf_data,   {   'name'  => 'read_ops_rate',
+                                        'value' => calc_counter_value('cifs_read_ops',          'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_read_ops', 'cifs')});
 
-		push (@derived_perf_data,	{	'name'	=> 'write_ops_rate',
-										'value' => calc_counter_value('cifs_write_ops', 		'cifs', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_write_ops', 'cifs')});
+        push (@derived_perf_data,   {   'name'  => 'write_ops_rate',
+                                        'value' => calc_counter_value('cifs_write_ops',         'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_write_ops', 'cifs')});
 
-		render_perf_data(\@derived_perf_data);
-	}
+        render_perf_data(\@derived_perf_data);
+    }
 }
 
 
@@ -1015,80 +1016,80 @@ sub get_cifs_perf_stats {
 
 sub get_aggregate_perf_stats {
 
-	my $aggregate = shift;
+    my $aggregate = shift;
 
-	$log->info("Getting performance stats for aggregate: $aggregate");
+    $log->info("Getting performance stats for aggregate: $aggregate");
 
-	my @identifiers = ('aggregate', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers, $aggregate);
+    my @identifiers = ('aggregate', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers, $aggregate);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'aggregate');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'aggregate');
 
-	my $instances = NaElement->new('instances');
-	$instances->child_add_string('instance', $aggregate);
-	$request->child_add($instances);
+    my $instances = NaElement->new('instances');
+    $instances->child_add_string('instance', $aggregate);
+    $request->child_add($instances);
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	$counters->child_add_string('counter', 'total_transfers');
+    $counters->child_add_string('counter', 'total_transfers');
 
-	$counters->child_add_string('counter', 'user_reads');
-	$counters->child_add_string('counter', 'user_writes');
-	$counters->child_add_string('counter', 'user_read_blocks');
-	$counters->child_add_string('counter', 'user_write_blocks');
+    $counters->child_add_string('counter', 'user_reads');
+    $counters->child_add_string('counter', 'user_writes');
+    $counters->child_add_string('counter', 'user_read_blocks');
+    $counters->child_add_string('counter', 'user_write_blocks');
 
-	# ----- *_hdd version of counters are equal to normal as there are only hdds in the aggregates (no ssds) -----
+    # ----- *_hdd version of counters are equal to normal as there are only hdds in the aggregates (no ssds) -----
 
-	$counters->child_add_string('counter', 'total_transfers_hdd');
+    $counters->child_add_string('counter', 'total_transfers_hdd');
 
-	$counters->child_add_string('counter', 'user_reads_hdd');
-	$counters->child_add_string('counter', 'user_writes_hdd');
-	$counters->child_add_string('counter', 'user_read_blocks_hdd');
-	$counters->child_add_string('counter', 'user_write_blocks_hdd');
+    $counters->child_add_string('counter', 'user_reads_hdd');
+    $counters->child_add_string('counter', 'user_writes_hdd');
+    $counters->child_add_string('counter', 'user_read_blocks_hdd');
+    $counters->child_add_string('counter', 'user_write_blocks_hdd');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$current_perf_data->{$counter_name} = $counter_value;
-	}
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
-		my @derived_perf_data = ();
+        my @derived_perf_data = ();
 
-		push (@derived_perf_data,	{	'name' 	=> 'total_transfers', 
-										'value' => calc_counter_value('total_transfers', 	'aggregate', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('total_transfers', 'aggregate')});
+        push (@derived_perf_data,   {   'name'  => 'total_transfers', 
+                                        'value' => calc_counter_value('total_transfers',    'aggregate', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('total_transfers', 'aggregate')});
 
-		# 4K block size, in MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'user_read_blocks', 
-										'value' => calc_counter_value('user_read_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
-										'unit'  => 'MB/s'});
+        # 4K block size, in MB/s
+        push (@derived_perf_data,   {   'name'  => 'user_read_blocks', 
+                                        'value' => calc_counter_value('user_read_blocks',   'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
+                                        'unit'  => 'MB/s'});
 
-		# 4K block size, in MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'user_write_blocks', 
-										'value' => calc_counter_value('user_write_blocks', 	'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
-										'unit'  => 'MB/s'});
+        # 4K block size, in MB/s
+        push (@derived_perf_data,   {   'name'  => 'user_write_blocks', 
+                                        'value' => calc_counter_value('user_write_blocks',  'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
+                                        'unit'  => 'MB/s'});
 
-		render_perf_data(\@derived_perf_data);	
-	}
+        render_perf_data(\@derived_perf_data);  
+    }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1096,319 +1097,319 @@ sub get_aggregate_perf_stats {
 
 sub get_volume_perf_stats {
 
-	my $volume = shift;
+    my $volume = shift;
 
-	$log->info("Getting performance stats for volume: $volume");
+    $log->info("Getting performance stats for volume: $volume");
 
-	my @identifiers = ('volume', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers, $volume);
+    my @identifiers = ('volume', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers, $volume);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'volume');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'volume');
 
-	my $instances = NaElement->new('instances');
-	$instances->child_add_string('instance', $volume);
-	$request->child_add($instances);
+    my $instances = NaElement->new('instances');
+    $instances->child_add_string('instance', $volume);
+    $request->child_add($instances);
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	#  ----- Global stats -----
+    #  ----- Global stats -----
 
-	$counters->child_add_string('counter', 'parent_aggr');
-	$counters->child_add_string('counter', 'avg_latency');
-	$counters->child_add_string('counter', 'total_ops');
+    $counters->child_add_string('counter', 'parent_aggr');
+    $counters->child_add_string('counter', 'avg_latency');
+    $counters->child_add_string('counter', 'total_ops');
 
-	#  ----- Volume reads -----
+    #  ----- Volume reads -----
 
-	$counters->child_add_string('counter', 'read_data');
-	$counters->child_add_string('counter', 'read_latency');
-	$counters->child_add_string('counter', 'read_ops');
-	$counters->child_add_string('counter', 'read_blocks');
+    $counters->child_add_string('counter', 'read_data');
+    $counters->child_add_string('counter', 'read_latency');
+    $counters->child_add_string('counter', 'read_ops');
+    $counters->child_add_string('counter', 'read_blocks');
 
-	#  ----- Volume writes -----
+    #  ----- Volume writes -----
 
-	$counters->child_add_string('counter', 'write_data');
-	$counters->child_add_string('counter', 'write_latency');
-	$counters->child_add_string('counter', 'write_ops');
-	$counters->child_add_string('counter', 'write_blocks');
+    $counters->child_add_string('counter', 'write_data');
+    $counters->child_add_string('counter', 'write_latency');
+    $counters->child_add_string('counter', 'write_ops');
+    $counters->child_add_string('counter', 'write_blocks');
 
-	#  ----- Volume other ops -----
+    #  ----- Volume other ops -----
 
-	$counters->child_add_string('counter', 'other_latency');
-	$counters->child_add_string('counter', 'other_ops');
+    $counters->child_add_string('counter', 'other_latency');
+    $counters->child_add_string('counter', 'other_ops');
 
-	#  ----- Volume nfs -----
-	
-	$counters->child_add_string('counter', 'nfs_read_data');
-	$counters->child_add_string('counter', 'nfs_read_latency');
-	$counters->child_add_string('counter', 'nfs_read_ops');
+    #  ----- Volume nfs -----
+    
+    $counters->child_add_string('counter', 'nfs_read_data');
+    $counters->child_add_string('counter', 'nfs_read_latency');
+    $counters->child_add_string('counter', 'nfs_read_ops');
 
-	$counters->child_add_string('counter', 'nfs_write_data');
-	$counters->child_add_string('counter', 'nfs_write_latency');
-	$counters->child_add_string('counter', 'nfs_write_ops');
+    $counters->child_add_string('counter', 'nfs_write_data');
+    $counters->child_add_string('counter', 'nfs_write_latency');
+    $counters->child_add_string('counter', 'nfs_write_ops');
 
-	$counters->child_add_string('counter', 'nfs_other_latency');
-	$counters->child_add_string('counter', 'nfs_other_ops');
+    $counters->child_add_string('counter', 'nfs_other_latency');
+    $counters->child_add_string('counter', 'nfs_other_ops');
 
-	#  ----- Volume cifs -----
+    #  ----- Volume cifs -----
 
-	$counters->child_add_string('counter', 'cifs_read_data');
-	$counters->child_add_string('counter', 'cifs_read_latency');
-	$counters->child_add_string('counter', 'cifs_read_ops');
+    $counters->child_add_string('counter', 'cifs_read_data');
+    $counters->child_add_string('counter', 'cifs_read_latency');
+    $counters->child_add_string('counter', 'cifs_read_ops');
 
-	$counters->child_add_string('counter', 'cifs_write_data');
-	$counters->child_add_string('counter', 'cifs_write_latency');
-	$counters->child_add_string('counter', 'cifs_write_ops');
+    $counters->child_add_string('counter', 'cifs_write_data');
+    $counters->child_add_string('counter', 'cifs_write_latency');
+    $counters->child_add_string('counter', 'cifs_write_ops');
 
-	$counters->child_add_string('counter', 'cifs_other_latency');
-	$counters->child_add_string('counter', 'cifs_other_ops');
+    $counters->child_add_string('counter', 'cifs_other_latency');
+    $counters->child_add_string('counter', 'cifs_other_ops');
 
-	#  ----- Volume iSCSI -----
+    #  ----- Volume iSCSI -----
 
-	$counters->child_add_string('counter', 'iscsi_read_data');
-	$counters->child_add_string('counter', 'iscsi_read_latency');
-	$counters->child_add_string('counter', 'iscsi_read_ops');
+    $counters->child_add_string('counter', 'iscsi_read_data');
+    $counters->child_add_string('counter', 'iscsi_read_latency');
+    $counters->child_add_string('counter', 'iscsi_read_ops');
 
-	$counters->child_add_string('counter', 'iscsi_write_data');
-	$counters->child_add_string('counter', 'iscsi_write_latency');
-	$counters->child_add_string('counter', 'iscsi_write_ops');
+    $counters->child_add_string('counter', 'iscsi_write_data');
+    $counters->child_add_string('counter', 'iscsi_write_latency');
+    $counters->child_add_string('counter', 'iscsi_write_ops');
 
-	$counters->child_add_string('counter', 'iscsi_other_latency');
-	$counters->child_add_string('counter', 'iscsi_other_ops');
+    $counters->child_add_string('counter', 'iscsi_other_latency');
+    $counters->child_add_string('counter', 'iscsi_other_ops');
 
-	#  ----- Volume inodes -----
+    #  ----- Volume inodes -----
 
-	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_total');
-	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_reserve');
-	$counters->child_add_string('counter', 'wv_fsinfo_public_inos_used');
+    $counters->child_add_string('counter', 'wv_fsinfo_public_inos_total');
+    $counters->child_add_string('counter', 'wv_fsinfo_public_inos_reserve');
+    $counters->child_add_string('counter', 'wv_fsinfo_public_inos_used');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-		my $counter_name 	= $_->child_get_string('name');
-		my $counter_value 	= $_->child_get_string('value');
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
 
-		$current_perf_data->{$counter_name} = $counter_value;
-	}
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
 
-		my @derived_perf_data = ();
+        my @derived_perf_data = ();
 
-		#  ----- Global stats -----
+        #  ----- Global stats -----
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'avg_latency', 
-										'value' => calc_counter_value('avg_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'avg_latency', 
+                                        'value' => calc_counter_value('avg_latency',    'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'total_ops', 
-										'value' => calc_counter_value('total_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('total_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'total_ops', 
+                                        'value' => calc_counter_value('total_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('total_ops', 'volume')});
 
-		#  ----- Volume reads -----
+        #  ----- Volume reads -----
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'read_data', 
-										'value' => calc_counter_value('read_data', 		'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'read_data', 
+                                        'value' => calc_counter_value('read_data',      'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'read_latency',
-										'value' => calc_counter_value('read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'read_latency',
+                                        'value' => calc_counter_value('read_latency',   'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'read_ops', 
-										'value' => calc_counter_value('read_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('read_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'read_ops', 
+                                        'value' => calc_counter_value('read_ops',       'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('read_ops', 'volume')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'read_blocks', 
-										'value' => calc_counter_value('read_blocks', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('read_blocks', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'read_blocks', 
+                                        'value' => calc_counter_value('read_blocks',    'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('read_blocks', 'volume')});
 
-		#  ----- Volume writes -----
+        #  ----- Volume writes -----
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'write_data', 
-										'value' => calc_counter_value('write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'write_data', 
+                                        'value' => calc_counter_value('write_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'write_latency', 
-										'value' => calc_counter_value('write_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'write_latency', 
+                                        'value' => calc_counter_value('write_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'write_ops', 
-										'value' => calc_counter_value('write_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('write_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'write_ops', 
+                                        'value' => calc_counter_value('write_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('write_ops', 'volume')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'write_blocks', 
-										'value' => calc_counter_value('write_blocks', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('write_blocks', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'write_blocks', 
+                                        'value' => calc_counter_value('write_blocks',   'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('write_blocks', 'volume')});
 
-		#  ----- Volume other ops -----
+        #  ----- Volume other ops -----
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'other_latency', 
-										'value' => calc_counter_value('other_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'other_latency', 
+                                        'value' => calc_counter_value('other_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'other_ops', 
-										'value' => calc_counter_value('other_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('other_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'other_ops', 
+                                        'value' => calc_counter_value('other_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('other_ops', 'volume')});
 
-		#  ----- Volume nfs -----
-	
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_data', 
-										'value' => calc_counter_value('nfs_read_data', 		'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        #  ----- Volume nfs -----
+    
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'nfs_read_data', 
+                                        'value' => calc_counter_value('nfs_read_data',      'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_latency', 
-										'value' => calc_counter_value('nfs_read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'nfs_read_latency', 
+                                        'value' => calc_counter_value('nfs_read_latency',   'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_read_ops', 
-										'value' => calc_counter_value('nfs_read_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfs_read_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'nfs_read_ops', 
+                                        'value' => calc_counter_value('nfs_read_ops',       'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfs_read_ops', 'volume')});
 
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_data', 
-										'value' => calc_counter_value('nfs_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'nfs_write_data', 
+                                        'value' => calc_counter_value('nfs_write_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_latency', 
-										'value' => calc_counter_value('nfs_write_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'nfs_write_latency', 
+                                        'value' => calc_counter_value('nfs_write_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_write_ops', 
-										'value' => calc_counter_value('nfs_write_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfs_write_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'nfs_write_ops', 
+                                        'value' => calc_counter_value('nfs_write_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfs_write_ops', 'volume')});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_other_latency', 
-										'value' => calc_counter_value('nfs_other_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'nfs_other_latency', 
+                                        'value' => calc_counter_value('nfs_other_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'nfs_other_ops', 
-										'value' => calc_counter_value('nfs_other_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('nfs_other_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'nfs_other_ops', 
+                                        'value' => calc_counter_value('nfs_other_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('nfs_other_ops', 'volume')});
 
-		#  ----- Volume cifs -----
+        #  ----- Volume cifs -----
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_data', 
-										'value' => calc_counter_value('cifs_read_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'cifs_read_data', 
+                                        'value' => calc_counter_value('cifs_read_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_latency', 
-										'value' => calc_counter_value('cifs_read_latency', 	'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'cifs_read_latency', 
+                                        'value' => calc_counter_value('cifs_read_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_read_ops', 
-										'value' => calc_counter_value('cifs_read_ops', 		'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_read_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'cifs_read_ops', 
+                                        'value' => calc_counter_value('cifs_read_ops',      'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_read_ops', 'volume')});
 
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_data', 
-										'value' => calc_counter_value('cifs_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'cifs_write_data', 
+                                        'value' => calc_counter_value('cifs_write_data',    'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_latency', 
-										'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'cifs_write_latency', 
+                                        'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_write_ops', 
-										'value' => calc_counter_value('cifs_write_ops', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_write_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'cifs_write_ops', 
+                                        'value' => calc_counter_value('cifs_write_ops',     'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_write_ops', 'volume')});
 
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_other_latency', 
-										'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'cifs_other_latency', 
+                                        'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'cifs_other_ops', 
-										'value' => calc_counter_value('cifs_other_ops', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('cifs_other_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'cifs_other_ops', 
+                                        'value' => calc_counter_value('cifs_other_ops',     'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('cifs_other_ops', 'volume')});
 
-		#  ----- Volume iSCSI -----
+        #  ----- Volume iSCSI -----
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_data', 
-										'value' => calc_counter_value('iscsi_read_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'iscsi_read_data', 
+                                        'value' => calc_counter_value('iscsi_read_data',    'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_latency', 
-										'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'iscsi_read_latency', 
+                                        'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_read_ops', 
-										'value' => calc_counter_value('iscsi_read_ops', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('iscsi_read_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'iscsi_read_ops', 
+                                        'value' => calc_counter_value('iscsi_read_ops',     'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('iscsi_read_ops', 'volume')});
 
-		# Convert to MB/s
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_data', 
-										'value' => calc_counter_value('iscsi_write_data', 	'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-										'unit'  => 'MB/s'});
+        # Convert to MB/s
+        push (@derived_perf_data,   {   'name'  => 'iscsi_write_data', 
+                                        'value' => calc_counter_value('iscsi_write_data',   'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
+                                        'unit'  => 'MB/s'});
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_latency', 
-										'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'iscsi_write_latency', 
+                                        'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_write_ops', 
-										'value' => calc_counter_value('iscsi_write_ops', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('iscsi_write_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'iscsi_write_ops', 
+                                        'value' => calc_counter_value('iscsi_write_ops',    'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('iscsi_write_ops', 'volume')});
 
 
-		# Convert to ms
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_other_latency', 
-										'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data, $old_perf_data) / 1000,
-										'unit'  => 'ms'});
+        # Convert to ms
+        push (@derived_perf_data,   {   'name'  => 'iscsi_other_latency', 
+                                        'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data, $old_perf_data) / 1000,
+                                        'unit'  => 'ms'});
 
-		push (@derived_perf_data,	{	'name' 	=> 'iscsi_other_ops', 
-										'value' => calc_counter_value('iscsi_other_ops', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('iscsi_other_ops', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'iscsi_other_ops', 
+                                        'value' => calc_counter_value('iscsi_other_ops',    'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('iscsi_other_ops', 'volume')});
 
-		#  ----- Volume inodes -----
+        #  ----- Volume inodes -----
 
 
-		push (@derived_perf_data,	{	'name' 	=> 'wv_fsinfo_public_inos_total', 
-										'value' => calc_counter_value('wv_fsinfo_public_inos_total', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('wv_fsinfo_public_inos_total', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_total', 
+                                        'value' => calc_counter_value('wv_fsinfo_public_inos_total',    'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('wv_fsinfo_public_inos_total', 'volume')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'wv_fsinfo_public_inos_reserve', 
-										'value' => calc_counter_value('wv_fsinfo_public_inos_reserve', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('wv_fsinfo_public_inos_reserve', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_reserve', 
+                                        'value' => calc_counter_value('wv_fsinfo_public_inos_reserve',  'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('wv_fsinfo_public_inos_reserve', 'volume')});
 
-		push (@derived_perf_data,	{	'name' 	=> 'wv_fsinfo_public_inos_used', 
-										'value' => calc_counter_value('wv_fsinfo_public_inos_used', 	'volume', $current_perf_data, $old_perf_data),
-										'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
+        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_used', 
+                                        'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
 
-		render_perf_data(\@derived_perf_data);	
-	}
+        render_perf_data(\@derived_perf_data);  
+    }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1416,82 +1417,82 @@ sub get_volume_perf_stats {
 
 sub get_processor_perf_stats {
 
-	$log->info("Getting performance stats for processors...");
+    $log->info("Getting performance stats for processors...");
 
-	my @identifiers = ('processor', 'perf', 'stats');
-	my $tmp_file = get_tmp_file (\@identifiers);
+    my @identifiers = ('processor', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
 
-	my $request	= NaElement->new('perf-object-get-instances');
-	$request->child_add_string('objectname', 'processor');
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'processor');
 
-	my $counters = NaElement->new('counters');
+    my $counters = NaElement->new('counters');
 
-	$counters->child_add_string('counter', 'processor_busy');
-	$counters->child_add_string('counter', 'processor_elapsed_time');
-	$counters->child_add_string('counter', 'domain_busy');
+    $counters->child_add_string('counter', 'processor_busy');
+    $counters->child_add_string('counter', 'processor_elapsed_time');
+    $counters->child_add_string('counter', 'domain_busy');
 
-	$request->child_add($counters);
+    $request->child_add($counters);
 
-	my $result 				= call_api($request);
-	my $current_perf_data 	= {};
+    my $result              = call_api($request);
+    my $current_perf_data   = {};
 
-	$current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
-	#
-	# By not specifing processor we get data for all processors => create counters of all processors
-	# Also, 'domain_busy' provides values for the different domains as an array. Transform that to individual counters for each domain and
-	# also provide an aggregate counter for each domain
-	#
-	my @domain_busy_counters = ();
-	my @domain_busy_labels = split(',', "idle,kahuna,storage,exempt,raid,target,dnscache,cifs,wafl_exempt,wafl_xcleaner,sm_exempt,cluster,protocol,nwk_exclusive,nwk_exempt,nwk_legacy,hostOS");
-	foreach my $instance ($result->child_get('instances')->children_get()) {
+    #
+    # By not specifing processor we get data for all processors => create counters of all processors
+    # Also, 'domain_busy' provides values for the different domains as an array. Transform that to individual counters for each domain and
+    # also provide an aggregate counter for each domain
+    #
+    my @domain_busy_counters = ();
+    my @domain_busy_labels = split(',', "idle,kahuna,storage,exempt,raid,target,dnscache,cifs,wafl_exempt,wafl_xcleaner,sm_exempt,cluster,protocol,nwk_exclusive,nwk_exempt,nwk_legacy,hostOS");
+    foreach my $instance ($result->child_get('instances')->children_get()) {
 
-		my $instance_name = $instance->child_get_string('name');
+        my $instance_name = $instance->child_get_string('name');
 
-		foreach my $counter ($instance->child_get('counters')->children_get()) {
+        foreach my $counter ($instance->child_get('counters')->children_get()) {
 
-			my $counter_name 	= $counter->child_get_string('name');
-			my $counter_value 	= $counter->child_get_string('value');
+            my $counter_name    = $counter->child_get_string('name');
+            my $counter_value   = $counter->child_get_string('value');
 
-			unless ($counter_name eq 'domain_busy') {
-				$current_perf_data->{$instance_name . '_' . $counter_name} = $counter_value;
-			} else {
-				$log->debug("$counter_name : $counter_value");
-				my @domain_busy_values = split(',', $counter_value);
-				foreach my $i (0 .. (@domain_busy_values - 1)) {
-					my $domain_name = $instance_name . '_' . $counter_name . '_' . $domain_busy_labels[$i];
-					$current_perf_data->{$domain_name} = $domain_busy_values[$i];
-					# Keep track of generated counters for later
-					push (@domain_busy_counters, $domain_name);
-				}
-			}
-		}
-	}
+            unless ($counter_name eq 'domain_busy') {
+                $current_perf_data->{$instance_name . '_' . $counter_name} = $counter_value;
+            } else {
+                $log->debug("$counter_name : $counter_value");
+                my @domain_busy_values = split(',', $counter_value);
+                foreach my $i (0 .. (@domain_busy_values - 1)) {
+                    my $domain_name = $instance_name . '_' . $counter_name . '_' . $domain_busy_labels[$i];
+                    $current_perf_data->{$domain_name} = $domain_busy_values[$i];
+                    # Keep track of generated counters for later
+                    push (@domain_busy_counters, $domain_name);
+                }
+            }
+        }
+    }
 
-	# Load old counters from file and persist new ones insted
+    # Load old counters from file and persist new ones insted
 
-	my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
 
-	write_hash_to_file($tmp_file, $current_perf_data);
+    write_hash_to_file($tmp_file, $current_perf_data);
 
-	# Calculate latencies / op rates
-	if (%$old_perf_data) {
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
 
-		my @derived_perf_data = ();
+        my @derived_perf_data = ();
 
-#		push (@derived_perf_data,	{	'name' 	=> 'processor_busy', 
-#										'value' => calc_counter_value('processor_busy', 		'processor', $current_perf_data, $old_perf_data)});
+#       push (@derived_perf_data,   {   'name'  => 'processor_busy', 
+#                                       'value' => calc_counter_value('processor_busy',         'processor', $current_perf_data, $old_perf_data)});
 
 
-		# Add generated domain busy counters
-		$log->debug("counter names: " . Dumper(@domain_busy_counters));
-		foreach my $domain_busy_counter_name (@domain_busy_counters) {
-			push (@derived_perf_data,	{	'name' 	=> $domain_busy_counter_name, 
-											'value' => calc_counter_value($domain_busy_counter_name, 'processor', $current_perf_data, $old_perf_data)});
-		}
+        # Add generated domain busy counters
+        $log->debug("counter names: " . Dumper(@domain_busy_counters));
+        foreach my $domain_busy_counter_name (@domain_busy_counters) {
+            push (@derived_perf_data,   {   'name'  => $domain_busy_counter_name, 
+                                            'value' => calc_counter_value($domain_busy_counter_name, 'processor', $current_perf_data, $old_perf_data)});
+        }
 
-		render_perf_data(\@derived_perf_data);
-	}
+        render_perf_data(\@derived_perf_data);
+    }
 }
 
 
@@ -1503,94 +1504,94 @@ $log->info('-' x 120);
 $log->info("Starting probe '$PROGNAME'...");
 
 # Create Monitoring::Plugin instance
-our $plugin = Monitoring::Plugin->new (	usage 		=> "Usage: %s -H <hostname> -U <user> -P <password> -s <stats1[=instance1],...> [-f <perf_counter1>,<perf_counter2>,...] [-w <perf_counter1>=<range1>,...] [-c <perf_counter1>=<range1>,...]",
-										shortname	=> $SHORTNAME,
-										version		=> $VERSION,
-										blurb		=> $DESCRIPTION,
-										extra		=> $EXTRA_DESC,
-										license		=> $LICENSE,
-										plugin 		=> $PROGNAME
-									);
+our $plugin = Monitoring::Plugin->new ( usage       => "Usage: %s -H <hostname> -U <user> -P <password> -s <stats1[=instance1],...> [-f <perf_counter1>,<perf_counter2>,...] [-w <perf_counter1>=<range1>,...] [-c <perf_counter1>=<range1>,...]",
+                                        shortname   => $SHORTNAME,
+                                        version     => $VERSION,
+                                        blurb       => $DESCRIPTION,
+                                        extra       => $EXTRA_DESC,
+                                        license     => $LICENSE,
+                                        plugin      => $PROGNAME
+                                    );
 
 
 # Define additional arguments
 $plugin->add_arg(
-	spec 		=> 'hostname|H=s',
-	help 		=> "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
-	required 	=> 1,
+    spec        => 'hostname|H=s',
+    help        => "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
+    required    => 1,
 );
 
 $plugin->add_arg(
-	spec 		=> 'user|U=s',
-	help 		=> "User name for login (default: none).\n",
-	required 	=> 1,
+    spec        => 'user|U=s',
+    help        => "User name for login (default: none).\n",
+    required    => 1,
 );
 
 $plugin->add_arg(
-	spec 		=> 'password|P=s',
-	help 		=> "Password for login (default: none).\n",
-	required 	=> 1,
+    spec        => 'password|P=s',
+    help        => "Password for login (default: none).\n",
+    required    => 1,
 );
 
 $plugin->add_arg(
-	spec 		=> 'protocol|p=s',
-	help 		=> "Protocol to use for communication (default: HTTPS).\n",
-	required 	=> 0,
-	default 	=> 'HTTPS'
+    spec        => 'protocol|p=s',
+    help        => "Protocol to use for communication (default: HTTPS).\n",
+    required    => 0,
+    default     => 'HTTPS'
 );
 
 $plugin->add_arg(
-	spec 		=> 'stats|s=s',
-	help 		=> "Type of stats to retrieve (default: system). Multiple stats can be selected, separated by a column. Valid values are:\n"	.
-					"     aggregate=aggr_name\n"	.
-					"     nfsv3\n"					.
-					"     processor\n"				.
-					"     system\n"					.
-					"     volume=vol_name\n"		,
-	required 	=> 0,
-	default 	=> 'system'
+    spec        => 'stats|s=s',
+    help        => "Type of stats to retrieve (default: system). Multiple stats can be selected, separated by a column. Valid values are:\n"    .
+                    "     aggregate=aggr_name\n"    .
+                    "     nfsv3\n"                  .
+                    "     processor\n"              .
+                    "     system\n"                 .
+                    "     volume=vol_name\n"        ,
+    required    => 0,
+    default     => 'system'
 );
 
 $plugin->add_arg(
-	spec 		=> 'filter|f=s',
-	help 		=> "Select the performance counter(s) to use by providing a column separated list of their names (default: all).\n",
-	required 	=> 0,
-	default 	=> 'all'
+    spec        => 'filter|f=s',
+    help        => "Select the performance counter(s) to use by providing a column separated list of their names (default: all).\n",
+    required    => 0,
+    default     => 'all'
 );
 
 $plugin->add_arg(
-	spec 		=> 'tmp_dir|T=s',
-	help 		=> "Location of directory for temporary files (default: /tmp).\n",
-	required 	=> 0,
-	default 	=> '/tmp'
+    spec        => 'tmp_dir|T=s',
+    help        => "Location of directory for temporary files (default: /tmp).\n",
+    required    => 0,
+    default     => '/tmp'
 );
 
 $plugin->add_arg(
-	spec 		=> 'output|o=s',
-	help 		=> "Define output format for the probe to use (default: nagios).\n",
-	required 	=> 0,
-	default 	=> 'nagios'
+    spec        => 'output|o=s',
+    help        => "Define output format for the probe to use (default: nagios).\n",
+    required    => 0,
+    default     => 'nagios'
 );
 
 $plugin->add_arg(
-	spec 		=> 'units|u=s',
-	help 		=> "Append units to metrics (default: yes).\n",
-	required 	=> 0,
-	default 	=> 'yes'
+    spec        => 'units|u=s',
+    help        => "Append units to metrics (default: yes).\n",
+    required    => 0,
+    default     => 'yes'
 );
 
 $plugin->add_arg(
-	spec 		=> 'warn|w=s',
-	help 		=> "Define performance counters and ranges to warn on (default: none).\n",
-	required 	=> 0,
-	default 	=> undef
+    spec        => 'warn|w=s',
+    help        => "Define performance counters and ranges to warn on (default: none).\n",
+    required    => 0,
+    default     => undef
 );
 
 $plugin->add_arg(
-	spec 		=> 'critical|c=s',
-	help 		=> "Define performance counters and ranges to critical on (default: none).\n",
-	required 	=> 0,
-	default 	=> undef
+    spec        => 'critical|c=s',
+    help        => "Define performance counters and ranges to critical on (default: none).\n",
+    required    => 0,
+    default     => undef
 );
 
 $plugin->getopts;
@@ -1598,15 +1599,15 @@ $plugin->getopts;
 # Signal handler - TERM
 
 local $SIG{ALRM} = sub {
-	local $SIG{TERM} = 'IGNORE';
-	kill TERM => -$$;
-	$plugin->plugin_exit(CRITICAL, "Data could not be collected in the allocated time (" . $plugin->opts->timeout . "s)");
+    local $SIG{TERM} = 'IGNORE';
+    kill TERM => -$$;
+    $plugin->plugin_exit(CRITICAL, "Data could not be collected in the allocated time (" . $plugin->opts->timeout . "s)");
 };
 
 local $SIG{TERM} = sub {
-	local $SIG{TERM} = 'IGNORE';
-	kill TERM => -$$;
-	$plugin->plugin_die("Plugin received TERM signal.");
+    local $SIG{TERM} = 'IGNORE';
+    kill TERM => -$$;
+    $plugin->plugin_die("Plugin received TERM signal.");
 };
 
 alarm($plugin->opts->timeout);
@@ -1620,10 +1621,10 @@ $log->info("Using '$tmp_dir' as directory for temp files.");
 our %warning_defs = ();
 
 if ($plugin->opts->warn) {
-	foreach my $counter_def (split(',', $plugin->opts->warn)) {
-		my ($counter_name, $counter_range) = split('=', $counter_def);
-		$warning_defs{trim($counter_name)} = trim($counter_range);
-	}
+    foreach my $counter_def (split(',', $plugin->opts->warn)) {
+        my ($counter_name, $counter_range) = split('=', $counter_def);
+        $warning_defs{trim($counter_name)} = trim($counter_range);
+    }
 }
 
 # Create hash of performance counters to critical on
@@ -1631,10 +1632,10 @@ if ($plugin->opts->warn) {
 our %critical_defs = ();
 
 if ($plugin->opts->critical) {
-	foreach my $counter_def (split(',', $plugin->opts->critical)) {
-		my ($counter_name, $counter_range) = split('=', $counter_def);
-		$critical_defs{trim($counter_name)} = trim($counter_range);
-	}
+    foreach my $counter_def (split(',', $plugin->opts->critical)) {
+        my ($counter_name, $counter_range) = split('=', $counter_def);
+        $critical_defs{trim($counter_name)} = trim($counter_range);
+    }
 }
 
 # Returned probe output
@@ -1676,74 +1677,74 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 my @selected_stats = split(',', $plugin->opts->stats);
 
 foreach my $stat (@selected_stats) {
-	switch ($stat) {
+    switch ($stat) {
 
-		case /aggregate/i {
-			my ($name, $instance) = split('=', $stat);
-			# aggr_SUBSAS01
-			get_aggregate_perf_stats($instance);
-		}
+        case /aggregate/i {
+            my ($name, $instance) = split('=', $stat);
+            # aggr_SUBSAS01
+            get_aggregate_perf_stats($instance);
+        }
 
-		case /nfsv3/i {
-			get_nfsv3_perf_stats();
-		}
+        case /nfsv3/i {
+            get_nfsv3_perf_stats();
+        }
 
-		case /cifs/i {
-			get_cifs_perf_stats();
-		}
+        case /cifs/i {
+            get_cifs_perf_stats();
+        }
 
-		case /processor/i {
-			get_processor_perf_stats();
-		}
+        case /processor/i {
+            get_processor_perf_stats();
+        }
 
-		case /system/i {
-			get_system_perf_stats();
-		}
+        case /system/i {
+            get_system_perf_stats();
+        }
 
-		case /volume/i {
-			my ($name, $instance) = split('=', $stat);
-			get_volume_perf_stats($instance);
-		}
+        case /volume/i {
+            my ($name, $instance) = split('=', $stat);
+            get_volume_perf_stats($instance);
+        }
 
-		else {
-			# Unknown / unsupoorted format
-			$log->error("Unknown stat name [$stat] => ignoring!");
-		}
-	}
+        else {
+            # Unknown / unsupoorted format
+            $log->error("Unknown stat name [$stat] => ignoring!");
+        }
+    }
 }
 
 # Postprocess probe output string according to selected format
 switch (lc($plugin->opts->output)) {
 
-	case 'nagios' {
-		
-		my $probe_status_output = '';
-		my $status_code = OK;
+    case 'nagios' {
+        
+        my $probe_status_output = '';
+        my $status_code = OK;
 
-		# Remove last two characters
-		$probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
-		
-		if (@warning) {
-			$probe_status_output .= 'Warning: ' . join(', ', @warning);
-			$status_code = WARNING;
-		}
+        # Remove last two characters
+        $probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
+        
+        if (@warning) {
+            $probe_status_output .= 'Warning: ' . join(', ', @warning);
+            $status_code = WARNING;
+        }
 
-		if (@critical) {
-			if (@warning) {
-				$probe_status_output .= ', ';
-			}
-			$probe_status_output .= 'Critical: ' . join(', ', @critical);
-			$status_code = CRITICAL;
-		}
+        if (@critical) {
+            if (@warning) {
+                $probe_status_output .= ', ';
+            }
+            $probe_status_output .= 'Critical: ' . join(', ', @critical);
+            $status_code = CRITICAL;
+        }
 
-		$plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_output);
-	}
+        $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_output);
+    }
 
-	else {
-		# Unknown / unsupoorted format
-		$log->error("Unkown output format => returning nothing!");
-		exit(0);
-	}
+    else {
+        # Unknown / unsupoorted format
+        $log->error("Unkown output format => returning nothing!");
+        exit(0);
+    }
 }
 
 
