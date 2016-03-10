@@ -1,8 +1,8 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/perl -X
 #
 # Nagios probe for checking a NetApp filer
 #
-# Copyright (c) 2014 Piotr Kasprzak
+# Copyright (c) 2016 Piotr Kasprzak
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 # cpan> install File::Slurp
 # cpan> install Switch                  (CHORNY/Switch-2.17.tar.gz)
 # cpan> install Clone                   (GARU/Clone-0.37.tar.gz)
+# cpan> install Net::Graphite           (v0.16)
 #
 # 2.) Get NetApp perl SDK
 #
@@ -86,7 +87,7 @@ use NaElement;
 
 # Standard variables used in Monitoring::Plugin constructor
 my $PROGNAME    = 'check_netapp';
-my $VERSION     = '1.0';
+my $VERSION     = '1.1';
 my $DESCRIPTION = 'Probe for checking a NetApp filer. Examples:\n'                                                  .
                     'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'         .
                     'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'                          .
@@ -99,7 +100,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
-Copyright 2014 Piotr Kasprzak';
+Copyright 2016 Piotr Kasprzak';
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Initialize logger
@@ -108,7 +109,6 @@ my $log4j_conf = q(
 
 #   log4perl.category.GWDG.NetApp = DEBUG, Screen, Logfile
     log4perl.category.GWDG.NetApp = DEBUG, Logfile
-
 
     log4perl.appender.Logfile = Log::Log4perl::Appender::File
     log4perl.appender.Logfile.filename = /var/log/check_netapp.log
@@ -550,61 +550,6 @@ sub check_perf_data {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Render perf metrics in hash
-
-sub render_perf_data {
-
-    our $probe_metric_output;
-    our $plugin;
-
-    my $perf_data       = shift;
-    my $perf_data_count = scalar @$perf_data;
-
-    # Check perf data for warnings / criticals
-    check_perf_data($perf_data);
-
-    $log->info("Rendering [$perf_data_count] perf counter metrics for output format [$plugin->opts->output]...");
-
-    # Filter list of counters based on cli selection
-    my @filtered_perf_data = ();
-    my @counter_names = split(',', $plugin->opts->filter);
-    if ($plugin->opts->filter eq 'all') {
-        @filtered_perf_data = @$perf_data;
-    } else {
-        foreach my $counter (@$perf_data) {
-            if ($counter->{'name'} ~~ @counter_names) {
-                push(@filtered_perf_data, $counter);
-            }
-        }
-    }
-    my $filtered_counter_num = scalar(@$perf_data) - scalar(@filtered_perf_data);
-    $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
-
-    # Render metrics according to seleced format
-    switch (lc($plugin->opts->output)) {
-
-        case 'nagios' {
-            for my $counter (@filtered_perf_data) {
-                $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-                $probe_metric_output .= $counter->{'name'} . "=" . $counter->{'value'};
-                # Check for unit
-                if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
-                    $probe_metric_output .= $counter->{'unit'};
-                }
-                $probe_metric_output .= " ";
-            }
-        }
-
-        else {
-            # Unknown / unsupoorted format
-            $log->error("Unkown format => not rendering!");
-        }
-    }
-
-    $log->debug("Current rendered text:\n$probe_metric_output");
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
 # Get basic system stats
 
 sub get_static_system_stats {
@@ -742,7 +687,6 @@ sub get_system_perf_stats {
 
         my @derived_perf_data = ();
 
-
         # ----- Global system counter -----
 
         push (@derived_perf_data,   {   'name'  => 'uptime', 
@@ -846,7 +790,10 @@ sub get_system_perf_stats {
                                         'value' => calc_counter_value('read_ops',       'system', $current_perf_data, $old_perf_data),
                                         'unit'  => get_unit('read_ops', 'system')});
         
-        render_perf_data(\@derived_perf_data);
+#        render_perf_data(\@derived_perf_data);
+
+        our $probe_metric_hash;
+        $probe_metric_hash->{'system'} = \@derived_perf_data;
     }
 }
 
@@ -926,7 +873,10 @@ sub get_nfsv3_perf_stats {
                                         'value' => calc_counter_value('nfsv3_write_ops',        'nfsv3', $current_perf_data, $old_perf_data),
                                         'unit'  => get_unit('nfsv3_write_ops', 'nfsv3')});
 
-        render_perf_data(\@derived_perf_data);
+ #       render_perf_data(\@derived_perf_data);
+ 
+        our $probe_metric_hash;
+        $probe_metric_hash->{'nfsv3'} = \@derived_perf_data;
     }
 }
 
@@ -1006,8 +956,11 @@ sub get_cifs_perf_stats {
                                         'value' => calc_counter_value('cifs_write_ops',         'cifs', $current_perf_data, $old_perf_data),
                                         'unit'  => get_unit('cifs_write_ops', 'cifs')});
 
-        render_perf_data(\@derived_perf_data);
-    }
+#       render_perf_data(\@derived_perf_data);
+ 
+        our $probe_metric_hash;
+        $probe_metric_hash->{'cifs'} = \@derived_perf_data;
+   }
 }
 
 
@@ -1088,7 +1041,10 @@ sub get_aggregate_perf_stats {
                                         'value' => calc_counter_value('user_write_blocks',  'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
                                         'unit'  => 'MB/s'});
 
-        render_perf_data(\@derived_perf_data);  
+ #       render_perf_data(\@derived_perf_data);
+ 
+        our $probe_metric_hash;
+        $probe_metric_hash->{'aggregate-' . $aggregate} = \@derived_perf_data;
     }
 }
 
@@ -1408,12 +1364,15 @@ sub get_volume_perf_stats {
                                         'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data, $old_perf_data),
                                         'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
 
-        render_perf_data(\@derived_perf_data);  
+ #       render_perf_data(\@derived_perf_data);
+ 
+        our $probe_metric_hash;
+        $probe_metric_hash->{'volume-' . $volume} = \@derived_perf_data;
     }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Get nfs v3 performance stats
+# Get processor performance stats
 
 sub get_processor_perf_stats {
 
@@ -1491,10 +1450,59 @@ sub get_processor_perf_stats {
                                             'value' => calc_counter_value($domain_busy_counter_name, 'processor', $current_perf_data, $old_perf_data)});
         }
 
-        render_perf_data(\@derived_perf_data);
+  #       render_perf_data(\@derived_perf_data);
+ 
+        our $probe_metric_hash;
+        $probe_metric_hash->{'processor'} = \@derived_perf_data;
     }
 }
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Get all user selected stats
+
+sub get_user_selected_perf_stats {
+
+    $log->info("Getting user selected perf stats ...");
+
+    my @selected_stats = split(',', $plugin->opts->stats);
+
+    foreach my $stat (@selected_stats) {
+        switch ($stat) {
+
+            case /aggregate/i {
+                my ($name, $instance) = split('=', $stat);
+                # aggr_SUBSAS01
+                get_aggregate_perf_stats($instance);
+            }
+
+            case /nfsv3/i {
+                get_nfsv3_perf_stats();
+            }
+
+            case /cifs/i {
+                get_cifs_perf_stats();
+            }
+
+            case /processor/i {
+                get_processor_perf_stats();
+            }
+
+            case /system/i {
+                get_system_perf_stats();
+            }
+
+            case /volume/i {
+                my ($name, $instance) = split('=', $stat);
+                get_volume_perf_stats($instance);
+            }
+
+            else {
+                # Unknown / unsupoorted format
+                $log->error("Unknown stat name [$stat] => ignoring!");
+            }
+        }
+    }
+}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Main
@@ -1641,6 +1649,10 @@ if ($plugin->opts->critical) {
 # Returned probe output
 our $probe_metric_output = '';
 
+# Hash with all perf. counters in the format { 'stat_group' => array of perf. counters };
+# This will be then rendered to requested output format (e.g. nagios / graphite)
+our %probe_metric_hash = ();
+
 # Warning / chritical / standard messages from check_perf_data()
 our (@warning, @critical, @standard) = ((), (), ());
 
@@ -1673,78 +1685,82 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 #load_perf_object_counter_descriptions('cifs');
 
-# Select the stats object
-my @selected_stats = split(',', $plugin->opts->stats);
+# Select the stats objects
+get_user_selected_perf_stats();
 
-foreach my $stat (@selected_stats) {
-    switch ($stat) {
+while (my ($perf_counter_group, $perf_counters) = each %probe_metric_hash) {
 
-        case /aggregate/i {
-            my ($name, $instance) = split('=', $stat);
-            # aggr_SUBSAS01
-            get_aggregate_perf_stats($instance);
+    # Filter list of counters based on cli selection
+    my @filtered_perf_counters = ();
+    my @counter_names = split(',', $plugin->opts->filter);
+    if ($plugin->opts->filter eq 'all') {
+        @filtered_perf_counters = @$perf_counters;
+    } else {
+        foreach my $counter (@$perf_counters) {
+            if ($counter->{'name'} ~~ @counter_names) {
+                push(@filtered_perf_counters, $counter);
+            }
+        }
+    }
+    my $filtered_counter_num = scalar(@$perf_counters) - scalar(@filtered_perf_counters);
+    $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
+
+    # Check perf data for warnings / criticals
+    check_perf_data($filtered_perf_counters);
+
+    my $filtered_perf_counters_num = scalar @$filtered_perf_counters;
+    $log->info("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
+
+    # Postprocess probe output string according to selected format
+    switch (lc($plugin->opts->output)) {
+
+        case 'nagios' {
+
+            my $probe_status_output = '';
+            my $status_code = OK;
+
+           for my $counter (@filtered_perf_counters) {
+                $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+                $probe_metric_output .= $counter->{'name'} . "=" . $counter->{'value'};
+                # Check for unit
+                if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
+                    $probe_metric_output .= $counter->{'unit'};
+                }
+                $probe_metric_output .= " ";
+            }
+
+            # Remove last two characters
+            $probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
+            
+            if (@warning) {
+                $probe_status_output .= 'Warning: ' . join(', ', @warning);
+                $status_code = WARNING;
+            }
+
+            if (@critical) {
+                if (@warning) {
+                    $probe_status_output .= ', ';
+                }
+                $probe_status_output .= 'Critical: ' . join(', ', @critical);
+                $status_code = CRITICAL;
+            }
+
+            $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_output);
         }
 
-        case /nfsv3/i {
-            get_nfsv3_perf_stats();
-        }
+        case 'graphite' {
 
-        case /cifs/i {
-            get_cifs_perf_stats();
-        }
-
-        case /processor/i {
-            get_processor_perf_stats();
-        }
-
-        case /system/i {
-            get_system_perf_stats();
-        }
-
-        case /volume/i {
-            my ($name, $instance) = split('=', $stat);
-            get_volume_perf_stats($instance);
         }
 
         else {
             # Unknown / unsupoorted format
-            $log->error("Unknown stat name [$stat] => ignoring!");
+            $log->error("Unkown output format => returning nothing!");
+            exit(0);
         }
     }
+
 }
 
-# Postprocess probe output string according to selected format
-switch (lc($plugin->opts->output)) {
 
-    case 'nagios' {
-        
-        my $probe_status_output = '';
-        my $status_code = OK;
-
-        # Remove last two characters
-        $probe_metric_output = substr($probe_metric_output, 0, length($probe_metric_output) - 2);
-        
-        if (@warning) {
-            $probe_status_output .= 'Warning: ' . join(', ', @warning);
-            $status_code = WARNING;
-        }
-
-        if (@critical) {
-            if (@warning) {
-                $probe_status_output .= ', ';
-            }
-            $probe_status_output .= 'Critical: ' . join(', ', @critical);
-            $status_code = CRITICAL;
-        }
-
-        $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_output);
-    }
-
-    else {
-        # Unknown / unsupoorted format
-        $log->error("Unkown output format => returning nothing!");
-        exit(0);
-    }
-}
 
 
