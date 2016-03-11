@@ -792,8 +792,8 @@ sub get_system_perf_stats {
         
 #        render_perf_data(\@derived_perf_data);
 
-        our $probe_metric_hash;
-        $probe_metric_hash->{'system'} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'system'} = \@derived_perf_data;
     }
 }
 
@@ -875,8 +875,8 @@ sub get_nfsv3_perf_stats {
 
  #       render_perf_data(\@derived_perf_data);
  
-        our $probe_metric_hash;
-        $probe_metric_hash->{'nfsv3'} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'nfsv3'} = \@derived_perf_data;
     }
 }
 
@@ -958,8 +958,8 @@ sub get_cifs_perf_stats {
 
 #       render_perf_data(\@derived_perf_data);
  
-        our $probe_metric_hash;
-        $probe_metric_hash->{'cifs'} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'cifs'} = \@derived_perf_data;
    }
 }
 
@@ -1043,8 +1043,8 @@ sub get_aggregate_perf_stats {
 
  #       render_perf_data(\@derived_perf_data);
  
-        our $probe_metric_hash;
-        $probe_metric_hash->{'aggregate-' . $aggregate} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'aggregate-' . $aggregate} = \@derived_perf_data;
     }
 }
 
@@ -1366,8 +1366,8 @@ sub get_volume_perf_stats {
 
  #       render_perf_data(\@derived_perf_data);
  
-        our $probe_metric_hash;
-        $probe_metric_hash->{'volume-' . $volume} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'volume-' . $volume} = \@derived_perf_data;
     }
 }
 
@@ -1452,8 +1452,8 @@ sub get_processor_perf_stats {
 
   #       render_perf_data(\@derived_perf_data);
  
-        our $probe_metric_hash;
-        $probe_metric_hash->{'processor'} = \@derived_perf_data;
+        our %probe_metric_hash;
+        $probe_metric_hash{'processor'} = \@derived_perf_data;
     }
 }
 
