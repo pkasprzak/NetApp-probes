@@ -1464,6 +1464,7 @@ sub get_user_selected_perf_stats {
 
     $log->info("Getting user selected perf stats ...");
 
+    our $plugin;
     my @selected_stats = split(',', $plugin->opts->stats);
 
     foreach my $stat (@selected_stats) {
@@ -1710,9 +1711,9 @@ while (1) {
         $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
 
         # Check perf data for warnings / criticals
-        check_perf_data($filtered_perf_counters);
+        check_perf_data(\@filtered_perf_counters);
 
-        my $filtered_perf_counters_num = scalar @$filtered_perf_counters;
+        my $filtered_perf_counters_num = scalar @filtered_perf_counters;
         $log->info("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
 
         # Process a group of filtered perf counters according to selected format
@@ -1733,7 +1734,7 @@ while (1) {
 
             case 'graphite' {
                 # Make sure we keep the result of filtering for later
-                $probe_metric_hash->{$perf_counter_group} = $filtered_perf_counters;
+                $probe_metric_hash{$perf_counter_group} = \@filtered_perf_counters;
             }
 
             else {
@@ -1787,7 +1788,7 @@ while (1) {
                  return_connect_error  => 0,                # if true, forward connect error to caller
              );
  
-            if $graphite->connect {
+            if ($graphite->connect) {
                 # Send metrics
                 my %hash_to_send = (time() => $probe_metric_hash);
                 $graphite->send(path => $static_system_stats->{'hostname'}, data => $hash_to_send);
