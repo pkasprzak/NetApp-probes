@@ -1790,8 +1790,8 @@ while (1) {
  
             if ($graphite->connect) {
                 # Send metrics
-                my %hash_to_send = (time() => $probe_metric_hash);
-                $graphite->send(path => $static_system_stats->{'hostname'}, data => $hash_to_send);
+                my %hash_to_send = (time() => \%probe_metric_hash);
+                $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
             } else {
                 log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
             }
