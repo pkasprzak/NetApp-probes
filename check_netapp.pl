@@ -1766,6 +1766,8 @@ while (1) {
 
         case 'nagios' {
 
+            $log->info("Sending output to nagios...");
+
             my $probe_status_output = '';
             my $status_code = OK;
 
@@ -1791,6 +1793,8 @@ while (1) {
 
         case 'graphite' {
 
+            $log->info("Sending output to graphite...");
+
             my $graphite_endpoint = 'muendung.gwdg.de';
 
             my $graphite = Net::Graphite->new(
@@ -1811,7 +1815,7 @@ while (1) {
                     my %hash_to_send = (time() => \%probe_metric_hash);
                     $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
                 } else {
-                    log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
+                    $log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
                 }
             }
         }
@@ -1819,7 +1823,7 @@ while (1) {
 
     # Wait
     $iteration++;
-    log->info("Finished iteration: $iteration => waiting...");
+    $log->info("Finished iteration: [$iteration] => waiting...");
     sleep($plugin->opts->wait);
 }
 
