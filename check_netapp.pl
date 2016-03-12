@@ -79,6 +79,7 @@ use File::Slurp;
 use Monitoring::Plugin;
 use Log::Log4perl;
 use JSON;
+use Net::Graphite;
 
 # NetApp SDK
 use lib "./NetApp";
@@ -1681,6 +1682,7 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 # ---- Main loop
 
+my $iteration = 0;
 while (1) {
 
     # Returned probe output (in case of nagios)
@@ -1797,9 +1799,12 @@ while (1) {
             }
         }
 
-        # Wait
-        sleep(5);
     }
+
+    # Wait
+    $iteration++;
+    log->info("Finished iteration: $iteration => waiting...");
+    sleep(10);
 }
 
 
