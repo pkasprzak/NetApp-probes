@@ -1591,17 +1591,31 @@ $plugin->add_arg(
 );
 
 $plugin->add_arg(
-    spec        => 'warn|w=s',
+    spec        => 'warn|W=s',
     help        => "Define performance counters and ranges to warn on (default: none).\n",
     required    => 0,
     default     => undef
 );
 
 $plugin->add_arg(
-    spec        => 'critical|c=s',
+    spec        => 'critical|C=s',
     help        => "Define performance counters and ranges to critical on (default: none).\n",
     required    => 0,
     default     => undef
+);
+
+$plugin->add_arg(
+    spec        => 'wait|w=i',
+    help        => "For output plugins that loop indefinitely (e.g. graphite) the number of seconds to wait before gathering metrics again (default: 10).\n",
+    required    => 0,
+    default     => 10
+);
+
+$plugin->add_arg(
+    spec        => 'debug|d',
+    help        => "Debug mode: do not write any output if possible / sensible (default: false).\n",
+    required    => 0,
+    default     => 0,
 );
 
 $plugin->getopts;
@@ -1790,21 +1804,23 @@ while (1) {
                  return_connect_error  => 0,                # if true, forward connect error to caller
              );
  
-            if ($graphite->connect) {
-                # Send metrics
-                my %hash_to_send = (time() => \%probe_metric_hash);
-                $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
-            } else {
-                log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
+            # Send metrics to graphite endpoint
+            if (not $plugin->opts->debug) {
+                if ($graphite->connect) {
+                    # Send metrics
+                    my %hash_to_send = (time() => \%probe_metric_hash);
+                    $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
+                } else {
+                    log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
+                }
             }
         }
-
     }
 
     # Wait
     $iteration++;
     log->info("Finished iteration: $iteration => waiting...");
-    sleep(10);
+    sleep($plugin->opts->wait);
 }
 
 
