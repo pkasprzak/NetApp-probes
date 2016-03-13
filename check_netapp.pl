@@ -1757,7 +1757,7 @@ while (1) {
                 my %perf_counter_group_hash = ();
                 for my $counter (@filtered_perf_counters) {
                     $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-                    $perf_counter_group_hash{$counter->{'name'}} = $counter->{'value'});
+                    $perf_counter_group_hash{$counter->{'name'}} = $counter->{'value'};
                 }
 
                 $probe_output_hash{$perf_counter_group} = \%perf_counter_group_hash;
