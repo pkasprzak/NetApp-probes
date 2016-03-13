@@ -1699,12 +1699,15 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 my $iteration = 0;
 while (1) {
 
-    # Returned probe output (in case of nagios)
-    my $probe_metric_string = '';
-
     # Hash with all perf. counters in the format { 'stat_group' => array of perf. counters };
     # This will be then rendered to requested output format (e.g. nagios / graphite)
     our %probe_metric_hash = ();
+
+    # Returned probe output (e.g. nagios)
+    my $probe_output_string = '';
+
+    # Returned probe output (e.g. graphite)
+    my %probe_output_hash = ();
 
     # Get the user selected stats objects
     get_user_selected_perf_stats();
@@ -1739,18 +1742,25 @@ while (1) {
 
                for my $counter (@filtered_perf_counters) {
                     $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-                    $probe_metric_string .= $counter->{'name'} . "=" . $counter->{'value'};
+                    $probe_output_string .= $counter->{'name'} . "=" . $counter->{'value'};
                     # Check for unit
                     if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
-                        $probe_metric_string .= $counter->{'unit'};
+                        $probe_output_string .= $counter->{'unit'};
                     }
-                    $probe_metric_string .= " ";
+                    $probe_output_string .= " ";
                 }
             }
 
             case 'graphite' {
-                # Make sure we keep the result of filtering for later
-                $probe_metric_hash{$perf_counter_group} = \@filtered_perf_counters;
+
+                # Create hash for sending to graphite later on
+                my %perf_counter_group_hash = ();
+                for my $counter (@filtered_perf_counters) {
+                    $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+                    $perf_counter_group_hash{$counter->{'name'}} = $counter->{'value'});
+                }
+
+                $probe_output_hash{$perf_counter_group} = \%perf_counter_group_hash;
             }
 
             else {
@@ -1772,7 +1782,7 @@ while (1) {
             my $status_code = OK;
 
             # Remove last two characters
-            $probe_metric_string = substr($probe_metric_string, 0, length($probe_metric_string) - 2);
+            $probe_output_string = substr($probe_output_string, 0, length($probe_output_string) - 2);
             
             if (@warning) {
                 $probe_status_output .= 'Warning: ' . join(', ', @warning);
@@ -1788,7 +1798,7 @@ while (1) {
             }
 
             # Print string and exit
-            $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_metric_string);
+            $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_output_string);
         }
 
         case 'graphite' {
@@ -1812,7 +1822,7 @@ while (1) {
             if (not $plugin->opts->debug) {
                 if ($graphite->connect) {
                     # Send metrics
-                    my %hash_to_send = (time() => \%probe_metric_hash);
+                    my %hash_to_send = (time() => \%probe_output_hash);
                     $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
                 } else {
                     $log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
