@@ -1901,7 +1901,7 @@ if (lc($plugin->opts->output) eq 'graphite') {
      
     my $timer = IO::Async::Timer::Periodic->new(
        interval => $plugin->opts->wait,
-       on_tick  => \&main_loop;
+       on_tick  => \&main_loop,
     );
      
     $timer->start;
