@@ -1568,7 +1568,7 @@ sub main_loop {
     our $plugin;
 
     # Warning / chritical / standard messages from check_perf_data()
-    our @warning, @critical, @standard;
+    our (@warning, @critical, @standard);
 
     # Returned probe output (e.g. nagios)
     my $probe_output_string = '';
@@ -1901,7 +1901,7 @@ if (lc($plugin->opts->output) eq 'graphite') {
      
     my $timer = IO::Async::Timer::Periodic->new(
        interval => $plugin->opts->wait,
-       on_tick  => \&main_loop();
+       on_tick  => \&main_loop;
     );
      
     $timer->start;
