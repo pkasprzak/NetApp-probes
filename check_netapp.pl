@@ -194,7 +194,20 @@ sub get_tmp_file {
     $log->debug("Created tmp file name: $tmp_file");
     return $tmp_file;
 }
-        
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Establish connection to filer
+
+sub connect_to_filer {
+
+    # Get server context
+    our $filer = NaServer->new($plugin->opts->hostname, 1, 15);
+
+    $filer->set_admin_user($plugin->opts->user, $plugin->opts->password);
+    $filer->set_bindings_family('7-Mode');
+    $filer->set_transport_type($plugin->opts->protocol);
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects (perf-object-list-info)
 
@@ -208,18 +221,34 @@ sub call_api {
         $log->debug("API request content:\n" . $request->sprintf());
     }
     
-    my $result = $main::filer->invoke_elem($request);
+    my $i = 1;
+    my $max_retries = 3;
+    my $sleep_on_error_ms = 500;
 
-    if ($log->is_debug()) {
-        $log->debug("API response content:\n" . $result->sprintf())
+    while ($i <= $max_retries) {
+        my $result = $main::filer->invoke_elem($request);
+
+        if ($log->is_debug()) {
+            $log->debug("API response content:\n" . $result->sprintf())
+        }
+
+        # Check for error
+        if ($result->results_status() eq 'failed') {
+
+            $log->error("API request failed: " . $result->results_reason());
+            $log->error("=> Reconnecting and retrying (try $i of $max_retries)");
+            Time::HiRes::usleep($sleep_on_error_ms);
+            connect_to_filer();
+            $i++;
+
+        } else {
+            # Success
+            return $result;
+        }
     }
 
-    # Check for error
-    if ($result->results_status() eq 'failed') {
-        $log->error("API request failed: " . $result->results_reason());
-    }
-
-    return $result;
+    # Nothing we can do
+    return;
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -230,7 +259,7 @@ sub list_perf_objects {
     $log->info("Listing performance objects...");
 
     my $request = NaElement->new('perf-object-list-info');
-    my $result  = call_api($request);
+    my $result  = call_api($request) || return;
 
     foreach ($result->child_get('objects')->children_get()) {
         my $name    = $_->child_get_string('name');
@@ -266,7 +295,7 @@ sub load_perf_object_counter_descriptions {
         my $request = NaElement->new('perf-object-counter-list-info');
         $request->child_add_string('objectname', $perf_object);
 
-        my $result  = call_api($request);
+        my $result  = call_api($request) || return;
 
         foreach my $na_element ($result->child_get('counters')->children_get()) {
 
@@ -598,7 +627,7 @@ sub get_static_system_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     $static_system_stats    = {};
 
     $static_system_stats->{'timestamp'} = $result->child_get_int('timestamp');
@@ -674,7 +703,7 @@ sub get_system_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -840,7 +869,7 @@ sub get_nfsv3_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -923,7 +952,7 @@ sub get_cifs_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -1014,7 +1043,7 @@ sub get_aggregate_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -1152,7 +1181,7 @@ sub get_volume_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -1403,7 +1432,7 @@ sub get_processor_perf_stats {
 
     $request->child_add($counters);
 
-    my $result              = call_api($request);
+    my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
@@ -1827,13 +1856,9 @@ if ($plugin->opts->critical) {
 # Warning / chritical / standard messages from check_perf_data()
 our (@warning, @critical, @standard) = ((), (), ());
 
-# Get server context
-
-our $filer = NaServer->new($plugin->opts->hostname, 1, 15);
-
-$filer->set_admin_user($plugin->opts->user, $plugin->opts->password);
-$filer->set_bindings_family('7-Mode');
-$filer->set_transport_type($plugin->opts->protocol);
+# Get filer connection
+our $filer;
+connect_to_filer();
 
 # Get perf object list
 our $json_parser = JSON->new->allow_nonref;
