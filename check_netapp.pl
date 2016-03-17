@@ -201,6 +201,7 @@ sub get_tmp_file {
 sub connect_to_filer {
 
     # Get server context
+    our $plugin;
     our $filer = NaServer->new($plugin->opts->hostname, 1, 15);
 
     $filer->set_admin_user($plugin->opts->user, $plugin->opts->password);
@@ -1557,8 +1558,17 @@ sub main_loop {
     # This will be then rendered to requested output format (e.g. nagios / graphite)
     our %probe_metric_hash = ();
 
+    # Basic system stats, like verions, number of processors, etc. (needed for some calculations)
+    our $static_system_stats;
+
     # Iteration counter
     our $iteration;
+
+    # Plugin ref.
+    our $plugin;
+
+    # Warning / chritical / standard messages from check_perf_data()
+    our @warning, @critical, @standard;
 
     # Returned probe output (e.g. nagios)
     my $probe_output_string = '';
