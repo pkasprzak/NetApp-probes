@@ -33,13 +33,15 @@
 # port install p5.16-xml-parser
 #
 # perl -MCPAN -e shell
-# cpan> install Monitoring::Plugin
-# cpan> install Log::Log4perl
-# cpan> install JSON
+# cpan> install Monitoring::Plugin      (For Nagios stuff)
+# cpan> install Log::Log4perl           (For logging)
+# cpan> install JSON                    (For json rendering in caching files)
 # cpan> install File::Slurp
 # cpan> install Switch                  (CHORNY/Switch-2.17.tar.gz)
 # cpan> install Clone                   (GARU/Clone-0.37.tar.gz)
 # cpan> install Net::Graphite           (v0.16)
+# cpan> install IO::Async               (For Timer loop: IO::Async::Timer::Periodic, v0.70)
+# cpan> install Time::HiRes             (For high resolution (ms) times, v1.9732)
 #
 # 2.) Get NetApp perl SDK
 #
@@ -57,10 +59,13 @@
 # 10:20     < 10 or > 20, (outside the range of {10 .. 20})
 # @10:20    ≥ 10 and ≤ 20, (inside the range of {10 .. 20})
 #
-# ToDo:
+# To do:
 # -----
 #
-# - Fix Perl interpreter call
+# - Reconnect on socket error
+# - Update NetApp sdk to 5.4p1
+# - Add high-res timer statistics for loop duration
+# - User IO::Async to collect metrics at defined times instead of just waiting for x secs
 # - Make it possible to filter counter (white list)
 # - Set units for processor performance counter and equivalent definitions
 #
@@ -80,6 +85,11 @@ use Monitoring::Plugin;
 use Log::Log4perl;
 use JSON;
 use Net::Graphite;
+
+use IO::Async::Timer::Periodic;
+use IO::Async::Loop;
+
+use Time::HiRes;
 
 # NetApp SDK
 use lib "./NetApp";
@@ -1507,6 +1517,158 @@ sub get_user_selected_perf_stats {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get all user selected stats
+
+sub main_loop {
+
+    # Get iteration start time
+    my $iteration_start_time = Time::HiRes::gettimeofday();
+
+    # Hash with all perf. counters in the format { 'stat_group' => array of perf. counters };
+    # This will be then rendered to requested output format (e.g. nagios / graphite)
+    our %probe_metric_hash = ();
+
+    # Iteration counter
+    our $iteration;
+
+    # Returned probe output (e.g. nagios)
+    my $probe_output_string = '';
+
+    # Returned probe output (e.g. graphite)
+    my %probe_output_hash = ();
+
+    # Get the user selected stats objects
+    get_user_selected_perf_stats();
+
+    while (my ($perf_counter_group, $perf_counters) = each %probe_metric_hash) {
+
+        # Filter list of counters based on cli selection
+        my @filtered_perf_counters = ();
+        my @counter_names = split(',', $plugin->opts->filter);
+        if ($plugin->opts->filter eq 'all') {
+            @filtered_perf_counters = @$perf_counters;
+        } else {
+            foreach my $counter (@$perf_counters) {
+                if ($counter->{'name'} ~~ @counter_names) {
+                    push(@filtered_perf_counters, $counter);
+                }
+            }
+        }
+        my $filtered_counter_num = scalar(@$perf_counters) - scalar(@filtered_perf_counters);
+        $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
+
+        # Check perf data for warnings / criticals
+        check_perf_data(\@filtered_perf_counters);
+
+        my $filtered_perf_counters_num = scalar @filtered_perf_counters;
+        $log->info("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
+
+        # Process a group of filtered perf counters according to selected format
+        switch (lc($plugin->opts->output)) {
+
+            case 'nagios' {
+
+               for my $counter (@filtered_perf_counters) {
+                    $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+                    $probe_output_string .= $counter->{'name'} . "=" . $counter->{'value'};
+                    # Check for unit
+                    if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
+                        $probe_output_string .= $counter->{'unit'};
+                    }
+                    $probe_output_string .= " ";
+                }
+            }
+
+            case 'graphite' {
+
+                # Create hash for sending to graphite later on
+                my %perf_counter_group_hash = ();
+                for my $counter (@filtered_perf_counters) {
+                    $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
+                    $perf_counter_group_hash{$counter->{'name'}} = $counter->{'value'};
+                }
+
+                $probe_output_hash{$perf_counter_group} = \%perf_counter_group_hash;
+            }
+
+            else {
+                # Unknown / unsupoorted format
+                $log->error("Unkown output format => returning nothing!");
+                exit(0);
+            }
+        }
+    }
+
+    # Finish probe iteration depending on output kind
+    switch (lc($plugin->opts->output)) {
+
+        case 'nagios' {
+
+            $log->info("Sending output to nagios...");
+
+            my $probe_status_output = '';
+            my $status_code = OK;
+
+            # Remove last two characters
+            $probe_output_string = substr($probe_output_string, 0, length($probe_output_string) - 2);
+            
+            if (@warning) {
+                $probe_status_output .= 'Warning: ' . join(', ', @warning);
+                $status_code = WARNING;
+            }
+
+            if (@critical) {
+                if (@warning) {
+                    $probe_status_output .= ', ';
+                }
+                $probe_status_output .= 'Critical: ' . join(', ', @critical);
+                $status_code = CRITICAL;
+            }
+
+            # Print string and exit
+            $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_output_string);
+        }
+
+        case 'graphite' {
+
+            $log->info("Sending output to graphite...");
+
+            my $graphite_endpoint = 'muendung.gwdg.de';
+
+            my $graphite = Net::Graphite->new(
+                 # except for host, these hopefully have reasonable defaults, so are optional
+                 host                  => $graphite_endpoint,
+                 port                  => 2003,
+                 trace                 => 0,                # if true, copy what's sent to STDERR
+                 proto                 => 'tcp',            # can be 'udp'
+                 timeout               => 1,                # timeout of socket connect in seconds
+                 fire_and_forget       => 0,                # if true, ignore sending errors
+                 return_connect_error  => 0,                # if true, forward connect error to caller
+             );
+ 
+            # Send metrics to graphite endpoint
+            if (not $plugin->opts->debug) {
+                if ($graphite->connect) {
+                    # Send metrics
+                    my %hash_to_send = (time() => \%probe_output_hash);
+                    $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
+                } else {
+                    $log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
+                }
+            }
+        }
+    }
+
+    # Get iteration end time
+    my $iteration_end_time = Time::HiRes::gettimeofday();
+    my $iteration_duration_string = sprintf("%.4f", $iteration_start_time - $iteration_end_time);
+
+    # Wait
+    $iteration++;
+    $log->info("Finished iteration [$iteration] in [$iteration_duration_string] seconds => waiting...");
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -1696,145 +1858,25 @@ $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $s
 
 # ---- Main loop
 
-my $iteration = 0;
-while (1) {
+our $iteration = 0;
 
-    # Hash with all perf. counters in the format { 'stat_group' => array of perf. counters };
-    # This will be then rendered to requested output format (e.g. nagios / graphite)
-    our %probe_metric_hash = ();
+if (lc($plugin->opts->output) eq 'graphite') {
 
-    # Returned probe output (e.g. nagios)
-    my $probe_output_string = '';
+    my $loop = IO::Async::Loop->new;
+     
+    my $timer = IO::Async::Timer::Periodic->new(
+       interval => $plugin->opts->wait,
+       on_tick  => \main_loop();
+    );
+     
+    $timer->start;
+    $loop->add( $timer );
+    $loop->run;
 
-    # Returned probe output (e.g. graphite)
-    my %probe_output_hash = ();
-
-    # Get the user selected stats objects
-    get_user_selected_perf_stats();
-
-    while (my ($perf_counter_group, $perf_counters) = each %probe_metric_hash) {
-
-        # Filter list of counters based on cli selection
-        my @filtered_perf_counters = ();
-        my @counter_names = split(',', $plugin->opts->filter);
-        if ($plugin->opts->filter eq 'all') {
-            @filtered_perf_counters = @$perf_counters;
-        } else {
-            foreach my $counter (@$perf_counters) {
-                if ($counter->{'name'} ~~ @counter_names) {
-                    push(@filtered_perf_counters, $counter);
-                }
-            }
-        }
-        my $filtered_counter_num = scalar(@$perf_counters) - scalar(@filtered_perf_counters);
-        $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
-
-        # Check perf data for warnings / criticals
-        check_perf_data(\@filtered_perf_counters);
-
-        my $filtered_perf_counters_num = scalar @filtered_perf_counters;
-        $log->info("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
-
-        # Process a group of filtered perf counters according to selected format
-        switch (lc($plugin->opts->output)) {
-
-            case 'nagios' {
-
-               for my $counter (@filtered_perf_counters) {
-                    $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-                    $probe_output_string .= $counter->{'name'} . "=" . $counter->{'value'};
-                    # Check for unit
-                    if (lc($plugin->opts->units) eq 'yes' and exists($counter->{'unit'})) {
-                        $probe_output_string .= $counter->{'unit'};
-                    }
-                    $probe_output_string .= " ";
-                }
-            }
-
-            case 'graphite' {
-
-                # Create hash for sending to graphite later on
-                my %perf_counter_group_hash = ();
-                for my $counter (@filtered_perf_counters) {
-                    $log->debug(sprintf("%-20s: %10s", $counter->{'name'}, $counter->{'value'}));
-                    $perf_counter_group_hash{$counter->{'name'}} = $counter->{'value'};
-                }
-
-                $probe_output_hash{$perf_counter_group} = \%perf_counter_group_hash;
-            }
-
-            else {
-                # Unknown / unsupoorted format
-                $log->error("Unkown output format => returning nothing!");
-                exit(0);
-            }
-        }
-    }
-
-    # Finish probe iteration depending on output kind
-    switch (lc($plugin->opts->output)) {
-
-        case 'nagios' {
-
-            $log->info("Sending output to nagios...");
-
-            my $probe_status_output = '';
-            my $status_code = OK;
-
-            # Remove last two characters
-            $probe_output_string = substr($probe_output_string, 0, length($probe_output_string) - 2);
-            
-            if (@warning) {
-                $probe_status_output .= 'Warning: ' . join(', ', @warning);
-                $status_code = WARNING;
-            }
-
-            if (@critical) {
-                if (@warning) {
-                    $probe_status_output .= ', ';
-                }
-                $probe_status_output .= 'Critical: ' . join(', ', @critical);
-                $status_code = CRITICAL;
-            }
-
-            # Print string and exit
-            $plugin->plugin_exit($status_code, $probe_status_output . ' | ' . $probe_output_string);
-        }
-
-        case 'graphite' {
-
-            $log->info("Sending output to graphite...");
-
-            my $graphite_endpoint = 'muendung.gwdg.de';
-
-            my $graphite = Net::Graphite->new(
-                 # except for host, these hopefully have reasonable defaults, so are optional
-                 host                  => $graphite_endpoint,
-                 port                  => 2003,
-                 trace                 => 0,                # if true, copy what's sent to STDERR
-                 proto                 => 'tcp',            # can be 'udp'
-                 timeout               => 1,                # timeout of socket connect in seconds
-                 fire_and_forget       => 0,                # if true, ignore sending errors
-                 return_connect_error  => 0,                # if true, forward connect error to caller
-             );
- 
-            # Send metrics to graphite endpoint
-            if (not $plugin->opts->debug) {
-                if ($graphite->connect) {
-                    # Send metrics
-                    my %hash_to_send = (time() => \%probe_output_hash);
-                    $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
-                } else {
-                    $log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
-                }
-            }
-        }
-    }
-
-    # Wait
-    $iteration++;
-    $log->info("Finished iteration: [$iteration] => waiting...");
-    sleep($plugin->opts->wait);
+} else {
+    main_loop();
 }
+
+
 
 
