@@ -118,7 +118,7 @@ Copyright 2016 Piotr Kasprzak';
 
 my $log4j_conf = q(
 
-   log4perl.category.GWDG.NetApp = DEBUG, Screen, Logfile
+   log4perl.category.GWDG.NetApp = INFO, Screen, Logfile
 #    log4perl.category.GWDG.NetApp = DEBUG, Logfile
 
     log4perl.appender.Logfile = Log::Log4perl::Appender::File
