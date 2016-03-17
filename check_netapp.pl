@@ -1700,7 +1700,7 @@ sub main_loop {
 
     # Get iteration end time
     my $iteration_end_time = Time::HiRes::gettimeofday();
-    my $iteration_duration_string = sprintf("%.4f", $iteration_start_time - $iteration_end_time);
+    my $iteration_duration_string = sprintf("%.4f", $iteration_end_time - $iteration_start_time);
 
     # Wait
     $iteration++;
