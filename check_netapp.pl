@@ -48,6 +48,9 @@
 # - Download netapp-manageability-sdk-5.3 from http://support.netapp.com/NOW/cgi-bin/software
 # - Copy lib/perl/NetApp directory with the perl modules to somewhere where it can be found by perl
 #
+# - Find API documentation here:
+#   ./netapp-manageability-sdk-5.4P1/doc/perldoc/Ontap7ModeAPI.html#perf_object_get_instances
+#
 #
 # Range format (for -w or -c):
 # ----------------------------
@@ -1511,29 +1514,29 @@ sub get_user_selected_perf_stats {
     foreach my $stat (@selected_stats) {
         switch ($stat) {
 
-            case /aggregate/i {
+            case /^aggr/i {
                 my ($name, $instance) = split('=', $stat);
                 # aggr_SUBSAS01
                 get_aggregate_perf_stats($instance);
             }
 
-            case /nfsv3/i {
+            case /^nfsv3/i {
                 get_nfsv3_perf_stats();
             }
 
-            case /cifs/i {
+            case /^cifs/i {
                 get_cifs_perf_stats();
             }
 
-            case /processor/i {
+            case /^processor/i {
                 get_processor_perf_stats();
             }
 
-            case /system/i {
+            case /^system/i {
                 get_system_perf_stats();
             }
 
-            case /volume/i {
+            case /^vol/i {
                 my ($name, $instance) = split('=', $stat);
                 get_volume_perf_stats($instance);
             }
