@@ -1208,7 +1208,7 @@ sub get_volume_perf_stats {
         if (!exists($current_perf_data->{$volume_instance})) {
             $current_perf_data->{$volume_instance} = {};
             # Timestamp needed per instance for calc_counter_value()
-            $current_perf_data->{$aggregate_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+            $current_perf_data->{$volume_instance}->{'timestamp'} = $result->child_get_int('timestamp');
         }
         $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
     }
