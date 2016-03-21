@@ -65,10 +65,7 @@
 # To do:
 # -----
 #
-# - Reconnect on socket error
-# - Update NetApp sdk to 5.4p1
-# - Add high-res timer statistics for loop duration
-# - User IO::Async to collect metrics at defined times instead of just waiting for x secs
+# - 
 # - Make it possible to filter counter (white list)
 # - Set units for processor performance counter and equivalent definitions
 #
@@ -1049,6 +1046,21 @@ sub get_aggregate_perf_stats {
     $counters->child_add_string('counter', 'user_read_blocks_hdd');
     $counters->child_add_string('counter', 'user_write_blocks_hdd');
 
+    # ----- Capacity data -----
+
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_total');
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_reserve');
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_used');
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_snap_reserve_pct');
+    $counters->child_add_string('counter', 'wvblk_snap_reserve');
+
+    # ----- Inode data -----
+
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_total');
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_reserve');
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_used');
+
+ 
     $request->child_add($counters);
 
     my $result              = call_api($request) || return;
@@ -1096,6 +1108,42 @@ sub get_aggregate_perf_stats {
                                             'value' => calc_counter_value('user_write_blocks',  'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}) * 4 / 1024,
                                             'unit'  => 'MB/s'});
             
+            # ----- Capacity data -----
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_total', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_total',               'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_total', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_reserve', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_reserve',             'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_reserve', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_used', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_used',                'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_used', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_snap_reserve_pct', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_snap_reserve_pct',    'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_snap_reserve_pct', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wvblk_snap_reserve', 
+                                            'value' => calc_counter_value('wvblk_snap_reserve',                 'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wvblk_snap_reserve', 'aggregate')});
+
+            # ----- Inode data -----
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_total', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_total',               'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_total', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_reserve', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_reserve',             'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_reserve', 'aggregate')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_used', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_used',                'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_used', 'aggregate')});
+
             $probe_metric_hash{'aggregate-' . $aggregate_instance} = \@derived_perf_data;
         }
     }
