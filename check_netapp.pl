@@ -1013,18 +1013,22 @@ sub get_cifs_perf_stats {
 
 sub get_aggregate_perf_stats {
 
-    my $aggregate = shift;
+    my $aggregate_instances = shift;
 
-    $log->info("Getting performance stats for aggregate: $aggregate");
+    our %probe_metric_hash;
+
+    $log->info("Getting performance stats for aggregate instances: @$aggregate_instances");
 
     my @identifiers = ('aggregate', 'perf', 'stats');
-    my $tmp_file = get_tmp_file (\@identifiers, $aggregate);
+    my $tmp_file = get_tmp_file (\@identifiers);
 
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'aggregate');
 
     my $instances = NaElement->new('instances');
-    $instances->child_add_string('instance', $aggregate);
+    foreach my $aggregate_instance (@$aggregate_instances) {
+        $instances->child_add_string('instance', $aggregate_instance);
+    }
     $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
@@ -1052,43 +1056,45 @@ sub get_aggregate_perf_stats {
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
+    # Build hash of hashes indexed by the aggregate instances
     foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
-        my $counter_name    = $_->child_get_string('name');
-        my $counter_value   = $_->child_get_string('value');
+        my $counter_name        = $_->child_get_string('name');
+        my $counter_value       = $_->child_get_string('value');
 
-        $current_perf_data->{$counter_name} = $counter_value;
+        my $aggregate_instance  = $result->child_get('instances')->child_get('instance-data')->child_get('name');
+        if (!exists($current_perf_data{$aggregate_instance})) {
+            $current_perf_data->{$aggregate_instance} = {};
+        }
+        $current_perf_data->{$aggregate_instance}->{$counter_name} = $counter_value;
     }
 
     # Load old counters from file and persist new ones insted
-
     my $old_perf_data = read_hash_from_file($tmp_file, 1);
-
     write_hash_to_file($tmp_file, $current_perf_data);
 
     # Calculate latencies / op rates
     if (%$old_perf_data) {
+        foreach my $aggregate_instance (keys(%$old_perf_data)) {
 
-        my @derived_perf_data = ();
+            my @derived_perf_data = ();
 
-        push (@derived_perf_data,   {   'name'  => 'total_transfers', 
-                                        'value' => calc_counter_value('total_transfers',    'aggregate', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('total_transfers', 'aggregate')});
+            push (@derived_perf_data,   {   'name'  => 'total_transfers', 
+                                            'value' => calc_counter_value('total_transfers',    'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('total_transfers', 'aggregate')});
 
-        # 4K block size, in MB/s
-        push (@derived_perf_data,   {   'name'  => 'user_read_blocks', 
-                                        'value' => calc_counter_value('user_read_blocks',   'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
-                                        'unit'  => 'MB/s'});
+            # 4K block size, in MB/s
+            push (@derived_perf_data,   {   'name'  => 'user_read_blocks', 
+                                            'value' => calc_counter_value('user_read_blocks',   'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}) * 4 / 1024,
+                                            'unit'  => 'MB/s'});
 
-        # 4K block size, in MB/s
-        push (@derived_perf_data,   {   'name'  => 'user_write_blocks', 
-                                        'value' => calc_counter_value('user_write_blocks',  'aggregate', $current_perf_data, $old_perf_data) * 4 / 1024,
-                                        'unit'  => 'MB/s'});
-
- #       render_perf_data(\@derived_perf_data);
- 
-        our %probe_metric_hash;
-        $probe_metric_hash{'aggregate-' . $aggregate} = \@derived_perf_data;
+            # 4K block size, in MB/s
+            push (@derived_perf_data,   {   'name'  => 'user_write_blocks', 
+                                            'value' => calc_counter_value('user_write_blocks',  'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}) * 4 / 1024,
+                                            'unit'  => 'MB/s'});
+            
+            $probe_metric_hash{'aggregate-' . $aggregate_instance} = \@derived_perf_data;
+        }
     }
 }
 
@@ -1097,18 +1103,22 @@ sub get_aggregate_perf_stats {
 
 sub get_volume_perf_stats {
 
-    my $volume = shift;
+    my $volume_instances = shift;
 
-    $log->info("Getting performance stats for volume: $volume");
+    our %probe_metric_hash;
+
+    $log->info("Getting performance stats for volume instances: @$volume_instances");
 
     my @identifiers = ('volume', 'perf', 'stats');
-    my $tmp_file = get_tmp_file (\@identifiers, $volume);
+    my $tmp_file = get_tmp_file (\@identifiers);
 
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'volume');
 
     my $instances = NaElement->new('instances');
-    $instances->child_add_string('instance', $volume);
+    foreach my $volume_instance (@$volume_instances) {
+        $instances->child_add_string('instance', $volume_instance);
+    }
     $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
@@ -1190,228 +1200,229 @@ sub get_volume_perf_stats {
 
     $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
 
+    # Build hash of hashes indexed by the volume instances
     foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
         my $counter_name    = $_->child_get_string('name');
         my $counter_value   = $_->child_get_string('value');
 
-        $current_perf_data->{$counter_name} = $counter_value;
+        my $volume_instance  = $result->child_get('instances')->child_get('instance-data')->child_get('name');
+        if (!exists($current_perf_data{$volume_instance})) {
+            $current_perf_data->{$volume_instance} = {};
+        }
+        $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
+
     }
 
     # Load old counters from file and persist new ones insted
-
     my $old_perf_data = read_hash_from_file($tmp_file, 1);
-
     write_hash_to_file($tmp_file, $current_perf_data);
 
     # Calculate latencies / op rates
     if (%$old_perf_data) {
+        foreach my $volume_instance (keys(%$old_perf_data)) {
+
+            my @derived_perf_data = ();
+
+            #  ----- Global stats -----
+
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'avg_latency', 
+                                            'value' => calc_counter_value('avg_latency',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
+
+            push (@derived_perf_data,   {   'name'  => 'total_ops', 
+                                            'value' => calc_counter_value('total_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('total_ops', 'volume')});
+
+            #  ----- Volume reads -----
+
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'read_data', 
+                                            'value' => calc_counter_value('read_data',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
+
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'read_latency',
+                                            'value' => calc_counter_value('read_latency',   'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
+
+            push (@derived_perf_data,   {   'name'  => 'read_ops', 
+                                            'value' => calc_counter_value('read_ops',       'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('read_ops', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'read_blocks', 
+                                            'value' => calc_counter_value('read_blocks',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('read_blocks', 'volume')});
+
+            #  ----- Volume writes -----
+
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'write_data', 
+                                            'value' => calc_counter_value('write_data',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
+
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'write_latency', 
+                                            'value' => calc_counter_value('write_latency',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
+
+            push (@derived_perf_data,   {   'name'  => 'write_ops', 
+                                            'value' => calc_counter_value('write_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('write_ops', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'write_blocks', 
+                                            'value' => calc_counter_value('write_blocks',   'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('write_blocks', 'volume')});
+
+            #  ----- Volume other ops -----
+
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'other_latency', 
+                                            'value' => calc_counter_value('other_latency',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
+
+            push (@derived_perf_data,   {   'name'  => 'other_ops', 
+                                            'value' => calc_counter_value('other_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('other_ops', 'volume')});
+
+            #  ----- Volume nfs -----
+        
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'nfs_read_data', 
+                                            'value' => calc_counter_value('nfs_read_data',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
+
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'nfs_read_latency', 
+                                            'value' => calc_counter_value('nfs_read_latency',   'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
+
+            push (@derived_perf_data,   {   'name'  => 'nfs_read_ops', 
+                                            'value' => calc_counter_value('nfs_read_ops',       'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('nfs_read_ops', 'volume')});
 
 
-        my @derived_perf_data = ();
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'nfs_write_data', 
+                                            'value' => calc_counter_value('nfs_write_data',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
 
-        #  ----- Global stats -----
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'nfs_write_latency', 
+                                            'value' => calc_counter_value('nfs_write_latency',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'avg_latency', 
-                                        'value' => calc_counter_value('avg_latency',    'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            push (@derived_perf_data,   {   'name'  => 'nfs_write_ops', 
+                                            'value' => calc_counter_value('nfs_write_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('nfs_write_ops', 'volume')});
 
-        push (@derived_perf_data,   {   'name'  => 'total_ops', 
-                                        'value' => calc_counter_value('total_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('total_ops', 'volume')});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'nfs_other_latency', 
+                                            'value' => calc_counter_value('nfs_other_latency',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        #  ----- Volume reads -----
+            push (@derived_perf_data,   {   'name'  => 'nfs_other_ops', 
+                                            'value' => calc_counter_value('nfs_other_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('nfs_other_ops', 'volume')});
 
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'read_data', 
-                                        'value' => calc_counter_value('read_data',      'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
+            #  ----- Volume cifs -----
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'read_latency',
-                                        'value' => calc_counter_value('read_latency',   'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'cifs_read_data', 
+                                            'value' => calc_counter_value('cifs_read_data',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
 
-        push (@derived_perf_data,   {   'name'  => 'read_ops', 
-                                        'value' => calc_counter_value('read_ops',       'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('read_ops', 'volume')});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'cifs_read_latency', 
+                                            'value' => calc_counter_value('cifs_read_latency',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        push (@derived_perf_data,   {   'name'  => 'read_blocks', 
-                                        'value' => calc_counter_value('read_blocks',    'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('read_blocks', 'volume')});
-
-        #  ----- Volume writes -----
-
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'write_data', 
-                                        'value' => calc_counter_value('write_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'write_latency', 
-                                        'value' => calc_counter_value('write_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'write_ops', 
-                                        'value' => calc_counter_value('write_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('write_ops', 'volume')});
-
-        push (@derived_perf_data,   {   'name'  => 'write_blocks', 
-                                        'value' => calc_counter_value('write_blocks',   'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('write_blocks', 'volume')});
-
-        #  ----- Volume other ops -----
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'other_latency', 
-                                        'value' => calc_counter_value('other_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'other_ops', 
-                                        'value' => calc_counter_value('other_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('other_ops', 'volume')});
-
-        #  ----- Volume nfs -----
-    
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'nfs_read_data', 
-                                        'value' => calc_counter_value('nfs_read_data',      'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'nfs_read_latency', 
-                                        'value' => calc_counter_value('nfs_read_latency',   'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'nfs_read_ops', 
-                                        'value' => calc_counter_value('nfs_read_ops',       'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('nfs_read_ops', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'cifs_read_ops', 
+                                            'value' => calc_counter_value('cifs_read_ops',      'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('cifs_read_ops', 'volume')});
 
 
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'nfs_write_data', 
-                                        'value' => calc_counter_value('nfs_write_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'cifs_write_data', 
+                                            'value' => calc_counter_value('cifs_write_data',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'nfs_write_latency', 
-                                        'value' => calc_counter_value('nfs_write_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'cifs_write_latency', 
+                                            'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        push (@derived_perf_data,   {   'name'  => 'nfs_write_ops', 
-                                        'value' => calc_counter_value('nfs_write_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('nfs_write_ops', 'volume')});
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'nfs_other_latency', 
-                                        'value' => calc_counter_value('nfs_other_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'nfs_other_ops', 
-                                        'value' => calc_counter_value('nfs_other_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('nfs_other_ops', 'volume')});
-
-        #  ----- Volume cifs -----
-
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'cifs_read_data', 
-                                        'value' => calc_counter_value('cifs_read_data',     'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'cifs_read_latency', 
-                                        'value' => calc_counter_value('cifs_read_latency',  'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'cifs_read_ops', 
-                                        'value' => calc_counter_value('cifs_read_ops',      'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('cifs_read_ops', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'cifs_write_ops', 
+                                            'value' => calc_counter_value('cifs_write_ops',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('cifs_write_ops', 'volume')});
 
 
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'cifs_write_data', 
-                                        'value' => calc_counter_value('cifs_write_data',    'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'cifs_other_latency', 
+                                            'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'cifs_write_latency', 
-                                        'value' => calc_counter_value('cifs_write_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            push (@derived_perf_data,   {   'name'  => 'cifs_other_ops', 
+                                            'value' => calc_counter_value('cifs_other_ops',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('cifs_other_ops', 'volume')});
 
-        push (@derived_perf_data,   {   'name'  => 'cifs_write_ops', 
-                                        'value' => calc_counter_value('cifs_write_ops',     'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('cifs_write_ops', 'volume')});
+            #  ----- Volume iSCSI -----
 
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'iscsi_read_data', 
+                                            'value' => calc_counter_value('iscsi_read_data',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'cifs_other_latency', 
-                                        'value' => calc_counter_value('cifs_other_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'iscsi_read_latency', 
+                                            'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        push (@derived_perf_data,   {   'name'  => 'cifs_other_ops', 
-                                        'value' => calc_counter_value('cifs_other_ops',     'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('cifs_other_ops', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'iscsi_read_ops', 
+                                            'value' => calc_counter_value('iscsi_read_ops',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('iscsi_read_ops', 'volume')});
 
-        #  ----- Volume iSCSI -----
+            # Convert to MB/s
+            push (@derived_perf_data,   {   'name'  => 'iscsi_write_data', 
+                                            'value' => calc_counter_value('iscsi_write_data',   'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / (1024 * 1024),
+                                            'unit'  => 'MB/s'});
 
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'iscsi_read_data', 
-                                        'value' => calc_counter_value('iscsi_read_data',    'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'iscsi_write_latency', 
+                                            'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'iscsi_read_latency', 
-                                        'value' => calc_counter_value('iscsi_read_latency', 'volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'iscsi_read_ops', 
-                                        'value' => calc_counter_value('iscsi_read_ops',     'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('iscsi_read_ops', 'volume')});
-
-        # Convert to MB/s
-        push (@derived_perf_data,   {   'name'  => 'iscsi_write_data', 
-                                        'value' => calc_counter_value('iscsi_write_data',   'volume', $current_perf_data, $old_perf_data) / (1024 * 1024),
-                                        'unit'  => 'MB/s'});
-
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'iscsi_write_latency', 
-                                        'value' => calc_counter_value('iscsi_write_latency','volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
-
-        push (@derived_perf_data,   {   'name'  => 'iscsi_write_ops', 
-                                        'value' => calc_counter_value('iscsi_write_ops',    'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('iscsi_write_ops', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'iscsi_write_ops', 
+                                            'value' => calc_counter_value('iscsi_write_ops',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('iscsi_write_ops', 'volume')});
 
 
-        # Convert to ms
-        push (@derived_perf_data,   {   'name'  => 'iscsi_other_latency', 
-                                        'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data, $old_perf_data) / 1000,
-                                        'unit'  => 'ms'});
+            # Convert to ms
+            push (@derived_perf_data,   {   'name'  => 'iscsi_other_latency', 
+                                            'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
+                                            'unit'  => 'ms'});
 
-        push (@derived_perf_data,   {   'name'  => 'iscsi_other_ops', 
-                                        'value' => calc_counter_value('iscsi_other_ops',    'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('iscsi_other_ops', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'iscsi_other_ops', 
+                                            'value' => calc_counter_value('iscsi_other_ops',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('iscsi_other_ops', 'volume')});
 
-        #  ----- Volume inodes -----
+            #  ----- Volume inodes -----
 
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_total', 
+                                            'value' => calc_counter_value('wv_fsinfo_public_inos_total',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_public_inos_total', 'volume')});
 
-        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_total', 
-                                        'value' => calc_counter_value('wv_fsinfo_public_inos_total',    'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('wv_fsinfo_public_inos_total', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_reserve', 
+                                            'value' => calc_counter_value('wv_fsinfo_public_inos_reserve',  'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_public_inos_reserve', 'volume')});
 
-        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_reserve', 
-                                        'value' => calc_counter_value('wv_fsinfo_public_inos_reserve',  'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('wv_fsinfo_public_inos_reserve', 'volume')});
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_used', 
+                                            'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
 
-        push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_used', 
-                                        'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
-
- #       render_perf_data(\@derived_perf_data);
- 
-        our %probe_metric_hash;
-        $probe_metric_hash{'volume-' . $volume} = \@derived_perf_data;
+            $probe_metric_hash{'volume-' . $volume_instance} = \@derived_perf_data;
+        }
     }
 }
 
@@ -1509,6 +1520,8 @@ sub get_user_selected_perf_stats {
     $log->info("Getting user selected perf stats ...");
 
     our $plugin;
+
+    my (@aggregate_instances, @volume_instances) = ((), ());
     my @selected_stats = split(',', $plugin->opts->stats);
 
     foreach my $stat (@selected_stats) {
@@ -1516,8 +1529,7 @@ sub get_user_selected_perf_stats {
 
             case /^aggr/i {
                 my ($name, $instance) = split('=', $stat);
-                # aggr_SUBSAS01
-                get_aggregate_perf_stats($instance);
+                push(@aggregate_instances, $instance);
             }
 
             case /^nfsv3/i {
@@ -1538,14 +1550,24 @@ sub get_user_selected_perf_stats {
 
             case /^vol/i {
                 my ($name, $instance) = split('=', $stat);
-                get_volume_perf_stats($instance);
+                push(@volume_instances, $instance);
             }
 
             else {
-                # Unknown / unsupoorted format
+                # Unknown / unsupported format
                 $log->error("Unknown stat name [$stat] => ignoring!");
             }
         }
+    }
+
+    # Process aggregate instances
+    if (@aggregate_instances) {
+        get_aggregate_perf_stats(\@aggregate_instances);
+    }
+
+    # Process volume instances
+    if (@volume_instances) {
+        get_volume_perf_stats(\@volume_instances);
     }
 }
 
