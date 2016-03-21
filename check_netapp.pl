@@ -1054,8 +1054,6 @@ sub get_aggregate_perf_stats {
     my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
-    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
-
     # Build hash of hashes indexed by the aggregate instances
     foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
@@ -1065,6 +1063,8 @@ sub get_aggregate_perf_stats {
         my $aggregate_instance  = $result->child_get('instances')->child_get('instance-data')->child_get_string('name');
         if (!exists($current_perf_data->{$aggregate_instance})) {
             $current_perf_data->{$aggregate_instance} = {};
+            # Timestamp needed per instance for calc_counter_value()
+            $current_perf_data->{$aggregate_instance}->{'timestamp'} = $result->child_get_int('timestamp');
         }
         $current_perf_data->{$aggregate_instance}->{$counter_name} = $counter_value;
     }
@@ -1198,8 +1198,6 @@ sub get_volume_perf_stats {
     my $result              = call_api($request) || return;
     my $current_perf_data   = {};
 
-    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
-
     # Build hash of hashes indexed by the volume instances
     foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
 
@@ -1209,6 +1207,8 @@ sub get_volume_perf_stats {
         my $volume_instance  = $result->child_get('instances')->child_get('instance-data')->child_get_string('name');
         if (!exists($current_perf_data->{$volume_instance})) {
             $current_perf_data->{$volume_instance} = {};
+            # Timestamp needed per instance for calc_counter_value()
+            $current_perf_data->{$aggregate_instance}->{'timestamp'} = $result->child_get_int('timestamp');
         }
         $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
     }
