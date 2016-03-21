@@ -1055,18 +1055,21 @@ sub get_aggregate_perf_stats {
     my $current_perf_data   = {};
 
     # Build hash of hashes indexed by the aggregate instances
-    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach my $instance_data ($result->child_get('instances')->child_get('instance-data')->children_get()) {
 
-        my $counter_name        = $_->child_get_string('name');
-        my $counter_value       = $_->child_get_string('value');
+        my $aggregate_instance = $instance_data->child_get_string('name');
 
-        my $aggregate_instance  = $result->child_get('instances')->child_get('instance-data')->child_get_string('name');
-        if (!exists($current_perf_data->{$aggregate_instance})) {
-            $current_perf_data->{$aggregate_instance} = {};
-            # Timestamp needed per instance for calc_counter_value()
-            $current_perf_data->{$aggregate_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+        $current_perf_data->{$aggregate_instance} = {};
+        # Timestamp needed per instance for calc_counter_value()
+        $current_perf_data->{$aggregate_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+       
+        foreach ($instance_data->child_get('counters')->children_get()) {
+
+            my $counter_name        = $_->child_get_string('name');
+            my $counter_value       = $_->child_get_string('value');
+
+            $current_perf_data->{$aggregate_instance}->{$counter_name} = $counter_value;
         }
-        $current_perf_data->{$aggregate_instance}->{$counter_name} = $counter_value;
     }
 
     # Load old counters from file and persist new ones insted
@@ -1199,18 +1202,21 @@ sub get_volume_perf_stats {
     my $current_perf_data   = {};
 
     # Build hash of hashes indexed by the volume instances
-    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+    foreach my $instance_data ($result->child_get('instances')->child_get('instance-data')->children_get()) {
 
-        my $counter_name    = $_->child_get_string('name');
-        my $counter_value   = $_->child_get_string('value');
+        my $volume_instance = $instance_data->child_get_string('name');
 
-        my $volume_instance  = $result->child_get('instances')->child_get('instance-data')->child_get_string('name');
-        if (!exists($current_perf_data->{$volume_instance})) {
-            $current_perf_data->{$volume_instance} = {};
-            # Timestamp needed per instance for calc_counter_value()
-            $current_perf_data->{$volume_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+        $current_perf_data->{$volume_instance} = {};
+        # Timestamp needed per instance for calc_counter_value()
+        $current_perf_data->{$volume_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+       
+        foreach ($instance_data->child_get('counters')->children_get()) {
+
+            my $counter_name        = $_->child_get_string('name');
+            my $counter_value       = $_->child_get_string('value');
+
+            $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
         }
-        $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
     }
 
     # Load old counters from file and persist new ones insted
