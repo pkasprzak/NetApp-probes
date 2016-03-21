@@ -1055,7 +1055,7 @@ sub get_aggregate_perf_stats {
     my $current_perf_data   = {};
 
     # Build hash of hashes indexed by the aggregate instances
-    foreach my $instance_data ($result->child_get('instances')->child_get('instance-data')->children_get()) {
+    foreach my $instance_data ($result->child_get('instances')->children_get()) {
 
         my $aggregate_instance = $instance_data->child_get_string('name');
 
@@ -1202,7 +1202,7 @@ sub get_volume_perf_stats {
     my $current_perf_data   = {};
 
     # Build hash of hashes indexed by the volume instances
-    foreach my $instance_data ($result->child_get('instances')->child_get('instance-data')->children_get()) {
+    foreach my $instance_data ($result->child_get('instances')->children_get()) {
 
         my $volume_instance = $instance_data->child_get_string('name');
 
