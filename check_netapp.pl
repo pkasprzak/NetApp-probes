@@ -1063,7 +1063,7 @@ sub get_aggregate_perf_stats {
         my $counter_value       = $_->child_get_string('value');
 
         my $aggregate_instance  = $result->child_get('instances')->child_get('instance-data')->child_get('name');
-        if (!exists($current_perf_data{$aggregate_instance})) {
+        if (!exists($current_perf_data->{$aggregate_instance})) {
             $current_perf_data->{$aggregate_instance} = {};
         }
         $current_perf_data->{$aggregate_instance}->{$counter_name} = $counter_value;
@@ -1207,7 +1207,7 @@ sub get_volume_perf_stats {
         my $counter_value   = $_->child_get_string('value');
 
         my $volume_instance  = $result->child_get('instances')->child_get('instance-data')->child_get('name');
-        if (!exists($current_perf_data{$volume_instance})) {
+        if (!exists($current_perf_data->{$volume_instance})) {
             $current_perf_data->{$volume_instance} = {};
         }
         $current_perf_data->{$volume_instance}->{$counter_name} = $counter_value;
