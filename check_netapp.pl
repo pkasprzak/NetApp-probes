@@ -257,7 +257,7 @@ sub call_api {
 
 sub list_perf_objects {
 
-    $log->info("Listing performance objects...");
+    $log->info("Listing all performance objects:");
 
     my $request = NaElement->new('perf-object-list-info');
     my $result  = call_api($request) || return;
@@ -268,7 +268,26 @@ sub list_perf_objects {
 
         $log->info(sprintf("%30s: %10s", $name, $level));
     }
+}
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Print list of perf objects instances (perf_object_instance_list_info)
+
+sub list_perf_objects_instances {
+
+    # Perf. object to list all instances of
+    my $perf_object = shift;
+
+    $log->info("Listing all instances of performance object [$perf_object]:");
+
+    my $request = NaElement->new('perf_object_instance_list_info');
+    my $result  = call_api($request) || return;
+
+    foreach ($result->child_get('instances')->children_get()) {
+        my $name    = $_->child_get_string('name');
+
+        $log->info(sprintf("%30s", $name));
+    }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1736,6 +1755,39 @@ sub get_user_selected_perf_stats {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# List selected meta information from the api
+
+sub list_user_selected_meta_data {
+
+    $log->info("Listing user selected meta information from the api...");
+
+    our $plugin;
+    my $list = $plugin->opts->list;
+
+    switch ($list) {
+
+        case /^objects/i {
+            list_perf_objects();
+        }
+
+        case /^counters/i {
+            my ($name, $object) = split('=', $list);
+            load_perf_object_counter_descriptions($object);
+        }
+
+        case /^instances/i {
+            my ($name, $object) = split('=', $list);
+            list_perf_objects_instances($object);
+        }
+
+        else {
+            # Unknown / unsupported
+            $log->error("Unknown metadata information request [$list] => ignoring!");
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Get all user selected stats
 
 sub main_loop {
@@ -1953,6 +2005,16 @@ $plugin->add_arg(
 );
 
 $plugin->add_arg(
+    spec        => 'list|l=s',
+    help        => "List meta information from the api (available objects, instances, counters, etc.). Aborts all further actions after listing. Valid values are:\n"    .
+                    "     objects\n"                    .
+                    "     counters=<object_name>\n"                   .
+                    "     instances=<object_name>\n"    ,
+    required    => 0,
+    default     => ''
+);
+
+$plugin->add_arg(
     spec        => 'filter|f=s',
     help        => "Select the performance counter(s) to use by providing a column separated list of their names (default: all).\n",
     required    => 0,
@@ -2069,18 +2131,13 @@ our $perf_object_counter_descriptions = {};
 our $static_system_stats = get_static_system_stats();
 $log->info("Probe targeting filer: $static_system_stats->{'hostname'} (ONTAP: $static_system_stats->{'ontap_version'}, serial: $static_system_stats->{'serial_no'})");
 
-#list_perf_objects();
-
-#load_perf_object_counter_descriptions('nfsv3');
-#load_perf_object_counter_descriptions('vfiler');
-#load_perf_object_counter_descriptions('volume');
-#load_perf_object_counter_descriptions('aggregate');
-#load_perf_object_counter_descriptions('processor');
-#load_perf_object_counter_descriptions('system');
-
-#load_perf_object_counter_descriptions('cifs');
-
 # ---- Main loop
+
+if (defined $plugin->opts->list and $plugin->opts->list ne '') {
+    # List metainformation from the api mode: list data as requested by --list and exit
+    list_user_selected_meta_data();
+    exit(0);
+}
 
 our $iteration = 0;
 
