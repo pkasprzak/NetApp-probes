@@ -1353,46 +1353,158 @@ sub get_interface_perf_stats {
             my @derived_perf_data = ();
 
             push (@derived_perf_data,   {   'name'  => 'recv_packets', 
-                                            'value' => calc_counter_value('recv_packets',       'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('recv_packets',       'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('recv_packets', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'recv_errors', 
-                                            'value' => calc_counter_value('recv_errors',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('recv_errors',        'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('recv_errors', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'send_packets', 
-                                            'value' => calc_counter_value('send_packets',       'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('send_packets',       'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('send_packets', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'send_errors', 
-                                            'value' => calc_counter_value('send_errors',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('send_errors',        'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('send_errors', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'collisions', 
-                                            'value' => calc_counter_value('collisions',         'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('collisions',         'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('collisions', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'recv_drop_packets', 
-                                            'value' => calc_counter_value('recv_drop_packets',  'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('recv_drop_packets',  'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('recv_drop_packets', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'recv_data', 
-                                            'value' => calc_counter_value('recv_data',          'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('recv_data',          'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('recv_data', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'send_data', 
-                                            'value' => calc_counter_value('send_data',          'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('send_data',          'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('send_data', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'recv_mcasts', 
-                                            'value' => calc_counter_value('recv_mcasts',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('recv_mcasts',        'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('recv_mcasts', 'ifnet')});
 
             push (@derived_perf_data,   {   'name'  => 'send_mcasts', 
-                                            'value' => calc_counter_value('send_mcasts',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'value' => calc_counter_value('send_mcasts',        'ifnet', $current_perf_data->{$interface_instance}, $old_perf_data->{$interface_instance}),
                                             'unit'  => get_unit('send_mcasts', 'ifnet')});
 
             $probe_metric_hash{'interface-' . $interface_instance} = \@derived_perf_data;
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Get vfiler performance stats
+
+sub get_vfiler_perf_stats {
+
+    my $vfiler_instances = shift;
+
+    our %probe_metric_hash;
+
+    $log->info("Getting performance stats for vfiler instances: @$vfiler_instances");
+
+    my @identifiers = ('vfiler', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
+
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'vfiler');
+
+    my $instances = NaElement->new('instances');
+    foreach my $vfiler_instance (@$vfiler_instances) {
+        $instances->child_add_string('instance', $vfiler_instance);
+    }
+    $request->child_add($instances);
+
+    my $counters = NaElement->new('counters');
+
+    $counters->child_add_string('counter', 'vfiler_cpu_busy');
+    $counters->child_add_string('counter', 'vfiler_cpu_busy_base');
+
+    $counters->child_add_string('counter', 'vfiler_net_data_recv');
+    $counters->child_add_string('counter', 'vfiler_net_data_sent');
+
+    $counters->child_add_string('counter', 'vfiler_read_ops');
+    $counters->child_add_string('counter', 'vfiler_write_ops');
+    $counters->child_add_string('counter', 'vfiler_misc_ops');
+
+    $counters->child_add_string('counter', 'vfiler_read_bytes');
+    $counters->child_add_string('counter', 'vfiler_write_bytes');
+ 
+    $request->child_add($counters);
+
+    my $result              = call_api($request) || return;
+    my $current_perf_data   = {};
+
+    # Build hash of hashes indexed by the vfiler instances
+    foreach my $instance_data ($result->child_get('instances')->children_get()) {
+
+        my $vfiler_instance = $instance_data->child_get_string('name');
+
+        $current_perf_data->{$vfiler_instance} = {};
+        # Timestamp needed per instance for calc_counter_value()
+        $current_perf_data->{$vfiler_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+       
+        foreach ($instance_data->child_get('counters')->children_get()) {
+
+            my $counter_name        = $_->child_get_string('name');
+            my $counter_value       = $_->child_get_string('value');
+
+            $current_perf_data->{$vfiler_instance}->{$counter_name} = $counter_value;
+        }
+    }
+
+    # Load old counters from file and persist new ones insted
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    write_hash_to_file($tmp_file, $current_perf_data);
+
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
+        foreach my $vfiler_instance (keys(%$old_perf_data)) {
+
+            my @derived_perf_data = ();
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_cpu_busy', 
+                                            'value' => calc_counter_value('vfiler_cpu_busy',            'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_cpu_busy', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_cpu_busy_base', 
+                                            'value' => calc_counter_value('vfiler_cpu_busy_base',       'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_cpu_busy_base', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_net_data_recv', 
+                                            'value' => calc_counter_value('vfiler_net_data_recv',       'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_net_data_recv', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_net_data_sent', 
+                                            'value' => calc_counter_value('vfiler_net_data_sent',       'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_net_data_sent', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_read_ops', 
+                                            'value' => calc_counter_value('vfiler_read_ops',            'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_read_ops', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_write_ops', 
+                                            'value' => calc_counter_value('vfiler_write_ops',           'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_write_ops', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_misc_ops', 
+                                            'value' => calc_counter_value('vfiler_misc_ops',            'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_misc_ops', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_read_bytes', 
+                                            'value' => calc_counter_value('vfiler_read_bytes',          'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_read_bytes', 'vfiler')});
+
+            push (@derived_perf_data,   {   'name'  => 'vfiler_write_bytes', 
+                                            'value' => calc_counter_value('vfiler_write_bytes',         'vfiler', $current_perf_data->{$vfiler_instance}, $old_perf_data->{$vfiler_instance}),
+                                            'unit'  => get_unit('vfiler_write_bytes', 'vfiler')});
+
+            $probe_metric_hash{'vfiler-' . $vfiler_instance} = \@derived_perf_data;
         }
     }
 }
@@ -1822,7 +1934,7 @@ sub get_user_selected_perf_stats {
 
     our $plugin;
 
-    my (@aggregate_instances, @volume_instances, @interface_instances) = ((), (), ());
+    my (@aggregate_instances, @volume_instances, @interface_instances, @vfiler_instances) = ((), (), (), ());
     my @selected_stats = split(',', $plugin->opts->stats);
 
     foreach my $stat (@selected_stats) {
@@ -1860,6 +1972,11 @@ sub get_user_selected_perf_stats {
                 push(@interface_instances, $instance);
             }
 
+            case /^vfiler/i {
+                my ($name, $instance) = split('=', $stat);
+                push(@vfiler_instances, $instance);
+            }
+
             else {
                 # Unknown / unsupported format
                 $log->error("Unknown stat name [$stat] => ignoring!");
@@ -1880,6 +1997,11 @@ sub get_user_selected_perf_stats {
     # Process interface instances
     if (@interface_instances) {
         get_interface_perf_stats(\@interface_instances);
+    }
+
+    # Process vfiler instances
+    if (@vfiler_instances) {
+        get_vfiler_perf_stats(\@vfiler_instances);
     }
 }
 
