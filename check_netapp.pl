@@ -1510,6 +1510,96 @@ sub get_vfiler_perf_stats {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get sis performance stats
+
+sub get_sis_perf_stats {
+
+    my $sis_instances = shift;
+
+    our %probe_metric_hash;
+
+    $log->info("Getting performance stats for sis instances: @$sis_instances");
+
+    my @identifiers = ('sis', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
+
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'sis');
+
+    my $instances = NaElement->new('instances');
+    foreach my $sis_instance (@$sis_instances) {
+        $instances->child_add_string('instance', $sis_instance);
+    }
+    $request->child_add($instances);
+
+    my $counters = NaElement->new('counters');
+
+    $counters->child_add_string('counter', 'total_blk_cnt');
+    $counters->child_add_string('counter', 'total_op_time');
+
+    $counters->child_add_string('counter', 'blks_used');
+    $counters->child_add_string('counter', 'blks_shared');
+    $counters->child_add_string('counter', 'share_saved_blk');
+
+    $request->child_add($counters);
+
+    my $result              = call_api($request) || return;
+    my $current_perf_data   = {};
+
+    # Build hash of hashes indexed by the sis instances
+    foreach my $instance_data ($result->child_get('instances')->children_get()) {
+
+        my $sis_instance = $instance_data->child_get_string('name');
+
+        $current_perf_data->{$sis_instance} = {};
+        # Timestamp needed per instance for calc_counter_value()
+        $current_perf_data->{$sis_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+       
+        foreach ($instance_data->child_get('counters')->children_get()) {
+
+            my $counter_name        = $_->child_get_string('name');
+            my $counter_value       = $_->child_get_string('value');
+
+            $current_perf_data->{$sis_instance}->{$counter_name} = $counter_value;
+        }
+    }
+
+    # Load old counters from file and persist new ones insted
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    write_hash_to_file($tmp_file, $current_perf_data);
+
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
+        foreach my $sis_instance (keys(%$old_perf_data)) {
+
+            my @derived_perf_data = ();
+
+            push (@derived_perf_data,   {   'name'  => 'total_blk_cnt', 
+                                            'value' => calc_counter_value('total_blk_cnt',      'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
+                                            'unit'  => get_unit('total_blk_cnt', 'sis')});
+
+            push (@derived_perf_data,   {   'name'  => 'total_op_time', 
+                                            'value' => calc_counter_value('total_op_time',      'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
+                                            'unit'  => get_unit('total_op_time', 'sis')});
+
+            push (@derived_perf_data,   {   'name'  => 'blks_used', 
+                                            'value' => calc_counter_value('blks_used',          'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
+                                            'unit'  => get_unit('blks_used', 'sis')});
+
+            push (@derived_perf_data,   {   'name'  => 'blks_shared', 
+                                            'value' => calc_counter_value('blks_shared',        'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
+                                            'unit'  => get_unit('blks_shared', 'sis')});
+
+            push (@derived_perf_data,   {   'name'  => 'share_saved_blk', 
+                                            'value' => calc_counter_value('share_saved_blk',    'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
+                                            'unit'  => get_unit('share_saved_blk', 'sis')});
+
+            $probe_metric_hash{'sis-' . $sis_instance} = \@derived_perf_data;
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Get volume performance stats
 
 sub get_volume_perf_stats {
@@ -1934,7 +2024,7 @@ sub get_user_selected_perf_stats {
 
     our $plugin;
 
-    my (@aggregate_instances, @volume_instances, @interface_instances, @vfiler_instances) = ((), (), (), ());
+    my (@aggregate_instances, @volume_instances, @interface_instances, @vfiler_instances, @sis_instances) = ((), (), (), (), ());
     my @selected_stats = split(',', $plugin->opts->stats);
 
     foreach my $stat (@selected_stats) {
@@ -1977,6 +2067,11 @@ sub get_user_selected_perf_stats {
                 push(@vfiler_instances, $instance);
             }
 
+            case /^sis/i {
+                my ($name, $instance) = split('=', $stat);
+                push(@sis_instances, $instance);
+            }
+
             else {
                 # Unknown / unsupported format
                 $log->error("Unknown stat name [$stat] => ignoring!");
@@ -2002,6 +2097,11 @@ sub get_user_selected_perf_stats {
     # Process vfiler instances
     if (@vfiler_instances) {
         get_vfiler_perf_stats(\@vfiler_instances);
+    }
+
+    # Process sis instances
+    if (@sis_instances) {
+        get_sis_perf_stats(\@sis_instances);
     }
 }
 
