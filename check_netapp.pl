@@ -1006,6 +1006,117 @@ sub get_cifs_perf_stats {
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Get cifs_stats performance stats (sessions, etc. in contrast to ops / latencies) above
+
+sub get_cifs_stats_perf_stats {
+
+    $log->info("Getting stats from cifs_stats...");
+
+    our %probe_metric_hash;
+
+    my @identifiers = ('cifs_stats', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
+
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'cifs_stats');
+
+    my $counters = NaElement->new('counters');
+
+    #  ----- Cifs sessions -----
+
+    $counters->child_add_string('counter', 'curr_sess_cnt');
+    $counters->child_add_string('counter', 'multi_user_sess_cn');
+    $counters->child_add_string('counter', 'curr_conn_user_cnt');
+    $counters->child_add_string('counter', 'logon_cnt');
+    $counters->child_add_string('counter', 'pdc_auth_cnt');
+
+    #  ----- Cifs shares / open files / dir / locks -----
+
+    $counters->child_add_string('counter', 'curr_share_cnt');
+    $counters->child_add_string('counter', 'curr_tree_cnt');
+    $counters->child_add_string('counter', 'curr_open_file_cnt');
+    $counters->child_add_string('counter', 'curr_open_dir_cnt');
+    $counters->child_add_string('counter', 'curr_watch_dir_cnt');
+    $counters->child_add_string('counter', 'curr_lock_cnt');
+
+    $request->child_add($counters);
+
+    my $result              = call_api($request) || return;
+    my $current_perf_data   = {};
+
+    $current_perf_data->{'timestamp'} = $result->child_get_int('timestamp');
+
+    foreach ($result->child_get('instances')->child_get('instance-data')->child_get('counters')->children_get()) {
+
+        my $counter_name    = $_->child_get_string('name');
+        my $counter_value   = $_->child_get_string('value');
+
+        $current_perf_data->{$counter_name} = $counter_value;
+    }
+
+    # Load old counters from file and persist new ones insted
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    write_hash_to_file($tmp_file, $current_perf_data);
+
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
+
+        my @derived_perf_data = ();
+
+        #  ----- Cifs sessions -----
+
+        push (@derived_perf_data,   {   'name'  => 'curr_sess_cnt', 
+                                        'value' => calc_counter_value('curr_sess_cnt',          'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_sess_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'multi_user_sess_cn', 
+                                        'value' => calc_counter_value('multi_user_sess_cn',     'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('multi_user_sess_cn', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_conn_user_cnt', 
+                                        'value' => calc_counter_value('curr_conn_user_cnt',     'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_conn_user_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'logon_cnt', 
+                                        'value' => calc_counter_value('logon_cnt',              'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('logon_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'pdc_auth_cnt', 
+                                        'value' => calc_counter_value('pdc_auth_cnt',           'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('pdc_auth_cnt', 'cifs')});
+
+        #  ----- Cifs shares / open files / dir / locks -----
+
+        push (@derived_perf_data,   {   'name'  => 'curr_share_cnt', 
+                                        'value' => calc_counter_value('curr_share_cnt',         'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_share_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_tree_cnt', 
+                                        'value' => calc_counter_value('curr_tree_cnt',          'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_tree_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_open_file_cnt', 
+                                        'value' => calc_counter_value('curr_open_file_cnt',     'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_open_file_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_open_dir_cnt', 
+                                        'value' => calc_counter_value('curr_open_dir_cnt',      'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_open_dir_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_watch_dir_cnt', 
+                                        'value' => calc_counter_value('curr_watch_dir_cnt',     'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_watch_dir_cnt', 'cifs')});
+
+        push (@derived_perf_data,   {   'name'  => 'curr_lock_cnt', 
+                                        'value' => calc_counter_value('curr_lock_cnt',          'cifs', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_lock_cnt', 'cifs')});
+
+        $probe_metric_hash{'cifs_stats'} = \@derived_perf_data;
+   }
+}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Get aggregate performance stats
 
 sub get_aggregate_perf_stats {
