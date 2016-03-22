@@ -1153,11 +1153,14 @@ sub get_aggregate_perf_stats {
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'aggregate');
 
-    my $instances = NaElement->new('instances');
-    foreach my $aggregate_instance (@$aggregate_instances) {
-        $instances->child_add_string('instance', $aggregate_instance);
+    # Define instances array only if not instance = 'all' specified
+    if (not /^all$/i ~~ @$aggregate_instances) {
+        my $instances = NaElement->new('instances');
+        foreach my $aggregate_instance (@$aggregate_instances) {
+            $instances->child_add_string('instance', $aggregate_instance);
+        }
+        $request->child_add($instances);
     }
-    $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
 
@@ -1296,11 +1299,14 @@ sub get_interface_perf_stats {
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'ifnet');
 
-    my $instances = NaElement->new('instances');
-    foreach my $interface_instance (@$interface_instances) {
-        $instances->child_add_string('instance', $interface_instance);
+    # Define instances array only if not instance = 'all' specified
+    if (not /^all$/i ~~ @$interface_instances) {
+        my $instances = NaElement->new('instances');
+        foreach my $interface_instance (@$interface_instances) {
+            $instances->child_add_string('instance', $interface_instance);
+        }
+        $request->child_add($instances);
     }
-    $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
 
@@ -1414,11 +1420,14 @@ sub get_vfiler_perf_stats {
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'vfiler');
 
-    my $instances = NaElement->new('instances');
-    foreach my $vfiler_instance (@$vfiler_instances) {
-        $instances->child_add_string('instance', $vfiler_instance);
+    # Define instances array only if not instance = 'all' specified
+    if (not /^all$/i ~~ @$vfiler_instances) {
+        my $instances = NaElement->new('instances');
+        foreach my $vfiler_instance (@$vfiler_instances) {
+            $instances->child_add_string('instance', $vfiler_instance);
+        }
+        $request->child_add($instances);
     }
-    $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
 
@@ -1526,11 +1535,14 @@ sub get_sis_perf_stats {
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'sis');
 
-    my $instances = NaElement->new('instances');
-    foreach my $sis_instance (@$sis_instances) {
-        $instances->child_add_string('instance', $sis_instance);
+    # Define instances array only if not instance = 'all' specified
+    if (not /^all$/i ~~ @$sis_instances) {
+        my $instances = NaElement->new('instances');
+        foreach my $sis_instance (@$sis_instances) {
+            $instances->child_add_string('instance', $sis_instance);
+        }
+        $request->child_add($instances);
     }
-    $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
 
@@ -1616,11 +1628,14 @@ sub get_volume_perf_stats {
     my $request = NaElement->new('perf-object-get-instances');
     $request->child_add_string('objectname', 'volume');
 
-    my $instances = NaElement->new('instances');
-    foreach my $volume_instance (@$volume_instances) {
-        $instances->child_add_string('instance', $volume_instance);
+    # Define instances array only if not instance = 'all' specified
+    if (not /^all$/i ~~ @$volume_instances) {
+        my $instances = NaElement->new('instances');
+        foreach my $volume_instance (@$volume_instances) {
+            $instances->child_add_string('instance', $volume_instance);
+        }
+        $request->child_add($instances);
     }
-    $request->child_add($instances);
 
     my $counters = NaElement->new('counters');
 
@@ -1913,7 +1928,6 @@ sub get_volume_perf_stats {
                                             'value' => calc_counter_value('iscsi_write_ops',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
                                             'unit'  => get_unit('iscsi_write_ops', 'volume')});
 
-
             # Convert to ms
             push (@derived_perf_data,   {   'name'  => 'iscsi_other_latency', 
                                             'value' => calc_counter_value('iscsi_other_latency','volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}) / 1000,
@@ -2110,7 +2124,7 @@ sub get_user_selected_perf_stats {
             }
 
             case /^vfiler/i {
-                my ($name, $instance) = split('=', $stat);
+                my ($name, $instance) = split('=', $stat);   
                 push(@vfiler_instances, $instance);
             }
 
