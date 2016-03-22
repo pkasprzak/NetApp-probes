@@ -1136,7 +1136,6 @@ sub get_cifs_stats_perf_stats {
    }
 }
 
-
 # ---------------------------------------------------------------------------------------------------------------------
 # Get aggregate performance stats
 
@@ -1192,7 +1191,6 @@ sub get_aggregate_perf_stats {
     $counters->child_add_string('counter', 'wv_fsinfo_inos_reserve');
     $counters->child_add_string('counter', 'wv_fsinfo_inos_used');
 
- 
     $request->child_add($counters);
 
     my $result              = call_api($request) || return;
@@ -1277,6 +1275,124 @@ sub get_aggregate_perf_stats {
                                             'unit'  => get_unit('wv_fsinfo_inos_used', 'aggregate')});
 
             $probe_metric_hash{'aggregate-' . $aggregate_instance} = \@derived_perf_data;
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Get interface performance stats (ifnet)
+
+sub get_interface_perf_stats {
+
+    my $interface_instances = shift;
+
+    our %probe_metric_hash;
+
+    $log->info("Getting performance stats for interface instances: @$interface_instances");
+
+    my @identifiers = ('interface', 'perf', 'stats');
+    my $tmp_file = get_tmp_file (\@identifiers);
+
+    my $request = NaElement->new('perf-object-get-instances');
+    $request->child_add_string('objectname', 'ifnet');
+
+    my $instances = NaElement->new('instances');
+    foreach my $interface_instance (@$interface_instances) {
+        $instances->child_add_string('instance', $interface_instance);
+    }
+    $request->child_add($instances);
+
+    my $counters = NaElement->new('counters');
+
+    $counters->child_add_string('counter', 'recv_packets');
+    $counters->child_add_string('counter', 'recv_errors');
+
+    $counters->child_add_string('counter', 'send_packets');
+    $counters->child_add_string('counter', 'send_errors');
+
+    $counters->child_add_string('counter', 'collisions');
+    $counters->child_add_string('counter', 'recv_drop_packets');
+
+    $counters->child_add_string('counter', 'recv_data');
+    $counters->child_add_string('counter', 'send_data');
+
+    $counters->child_add_string('counter', 'recv_mcasts');
+    $counters->child_add_string('counter', 'send_mcasts');
+
+    $request->child_add($counters);
+
+    my $result              = call_api($request) || return;
+    my $current_perf_data   = {};
+
+    # Build hash of hashes indexed by the interface instances
+    foreach my $instance_data ($result->child_get('instances')->children_get()) {
+
+        my $interface_instance = $instance_data->child_get_string('name');
+
+        $current_perf_data->{$interface_instance} = {};
+        # Timestamp needed per instance for calc_counter_value()
+        $current_perf_data->{$interface_instance}->{'timestamp'} = $result->child_get_int('timestamp');
+       
+        foreach ($instance_data->child_get('counters')->children_get()) {
+
+            my $counter_name        = $_->child_get_string('name');
+            my $counter_value       = $_->child_get_string('value');
+
+            $current_perf_data->{$interface_instance}->{$counter_name} = $counter_value;
+        }
+    }
+
+    # Load old counters from file and persist new ones insted
+    my $old_perf_data = read_hash_from_file($tmp_file, 1);
+    write_hash_to_file($tmp_file, $current_perf_data);
+
+    # Calculate latencies / op rates
+    if (%$old_perf_data) {
+        foreach my $interface_instance (keys(%$old_perf_data)) {
+
+            my @derived_perf_data = ();
+
+            push (@derived_perf_data,   {   'name'  => 'recv_packets', 
+                                            'value' => calc_counter_value('recv_packets',       'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('recv_packets', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'recv_errors', 
+                                            'value' => calc_counter_value('recv_errors',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('recv_errors', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'send_packets', 
+                                            'value' => calc_counter_value('send_packets',       'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('send_packets', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'send_errors', 
+                                            'value' => calc_counter_value('send_errors',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('send_errors', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'collisions', 
+                                            'value' => calc_counter_value('collisions',         'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('collisions', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'recv_drop_packets', 
+                                            'value' => calc_counter_value('recv_drop_packets',  'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('recv_drop_packets', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'recv_data', 
+                                            'value' => calc_counter_value('recv_data',          'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('recv_data', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'send_data', 
+                                            'value' => calc_counter_value('send_data',          'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('send_data', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'recv_mcasts', 
+                                            'value' => calc_counter_value('recv_mcasts',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('recv_mcasts', 'ifnet')});
+
+            push (@derived_perf_data,   {   'name'  => 'send_mcasts', 
+                                            'value' => calc_counter_value('send_mcasts',        'ifnet', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
+                                            'unit'  => get_unit('send_mcasts', 'ifnet')});
+
+            $probe_metric_hash{'interface-' . $interface_instance} = \@derived_perf_data;
         }
     }
 }
@@ -1706,7 +1822,7 @@ sub get_user_selected_perf_stats {
 
     our $plugin;
 
-    my (@aggregate_instances, @volume_instances) = ((), ());
+    my (@aggregate_instances, @volume_instances, @interface_instances) = ((), (), ());
     my @selected_stats = split(',', $plugin->opts->stats);
 
     foreach my $stat (@selected_stats) {
@@ -1723,6 +1839,7 @@ sub get_user_selected_perf_stats {
 
             case /^cifs/i {
                 get_cifs_perf_stats();
+                get_cifs_stats_perf_stats();
             }
 
             case /^processor/i {
@@ -1736,6 +1853,11 @@ sub get_user_selected_perf_stats {
             case /^vol/i {
                 my ($name, $instance) = split('=', $stat);
                 push(@volume_instances, $instance);
+            }
+
+            case /^interface/i {
+                my ($name, $instance) = split('=', $stat);
+                push(@interface_instances, $instance);
             }
 
             else {
@@ -1753,6 +1875,11 @@ sub get_user_selected_perf_stats {
     # Process volume instances
     if (@volume_instances) {
         get_volume_perf_stats(\@volume_instances);
+    }
+
+    # Process interface instances
+    if (@interface_instances) {
+        get_interface_perf_stats(\@interface_instances);
     }
 }
 
