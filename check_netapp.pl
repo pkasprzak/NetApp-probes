@@ -1087,50 +1087,50 @@ sub get_cifs_stats_perf_stats {
         #  ----- Cifs sessions -----
 
         push (@derived_perf_data,   {   'name'  => 'curr_sess_cnt', 
-                                        'value' => calc_counter_value('curr_sess_cnt',          'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_sess_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_sess_cnt',          'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_sess_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'multi_user_sess_cn', 
-                                        'value' => calc_counter_value('multi_user_sess_cn',     'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('multi_user_sess_cn', 'cifs')});
+                                        'value' => calc_counter_value('multi_user_sess_cn',     'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('multi_user_sess_cn', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_conn_user_cnt', 
-                                        'value' => calc_counter_value('curr_conn_user_cnt',     'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_conn_user_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_conn_user_cnt',     'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_conn_user_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'logon_cnt', 
-                                        'value' => calc_counter_value('logon_cnt',              'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('logon_cnt', 'cifs')});
+                                        'value' => calc_counter_value('logon_cnt',              'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('logon_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'pdc_auth_cnt', 
-                                        'value' => calc_counter_value('pdc_auth_cnt',           'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('pdc_auth_cnt', 'cifs')});
+                                        'value' => calc_counter_value('pdc_auth_cnt',           'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('pdc_auth_cnt', 'cifs_stats')});
 
         #  ----- Cifs shares / open files / dir / locks -----
 
         push (@derived_perf_data,   {   'name'  => 'curr_share_cnt', 
-                                        'value' => calc_counter_value('curr_share_cnt',         'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_share_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_share_cnt',         'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_share_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_tree_cnt', 
-                                        'value' => calc_counter_value('curr_tree_cnt',          'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_tree_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_tree_cnt',          'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_tree_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_open_file_cnt', 
-                                        'value' => calc_counter_value('curr_open_file_cnt',     'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_open_file_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_open_file_cnt',     'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_open_file_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_open_dir_cnt', 
-                                        'value' => calc_counter_value('curr_open_dir_cnt',      'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_open_dir_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_open_dir_cnt',      'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_open_dir_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_watch_dir_cnt', 
-                                        'value' => calc_counter_value('curr_watch_dir_cnt',     'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_watch_dir_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_watch_dir_cnt',     'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_watch_dir_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_lock_cnt', 
-                                        'value' => calc_counter_value('curr_lock_cnt',          'cifs', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('curr_lock_cnt', 'cifs')});
+                                        'value' => calc_counter_value('curr_lock_cnt',          'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('curr_lock_cnt', 'cifs_stats')});
 
         $probe_metric_hash{'cifs_stats'} = \@derived_perf_data;
    }
