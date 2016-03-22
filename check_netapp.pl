@@ -1624,32 +1624,32 @@ sub get_volume_perf_stats {
 
     my $counters = NaElement->new('counters');
 
-    #  ----- Global stats -----
+    # ----- Global stats -----
 
     $counters->child_add_string('counter', 'parent_aggr');
     $counters->child_add_string('counter', 'avg_latency');
     $counters->child_add_string('counter', 'total_ops');
 
-    #  ----- Volume reads -----
+    # ----- Volume reads -----
 
     $counters->child_add_string('counter', 'read_data');
     $counters->child_add_string('counter', 'read_latency');
     $counters->child_add_string('counter', 'read_ops');
     $counters->child_add_string('counter', 'read_blocks');
 
-    #  ----- Volume writes -----
+    # ----- Volume writes -----
 
     $counters->child_add_string('counter', 'write_data');
     $counters->child_add_string('counter', 'write_latency');
     $counters->child_add_string('counter', 'write_ops');
     $counters->child_add_string('counter', 'write_blocks');
 
-    #  ----- Volume other ops -----
+    # ----- Volume other ops -----
 
     $counters->child_add_string('counter', 'other_latency');
     $counters->child_add_string('counter', 'other_ops');
 
-    #  ----- Volume nfs -----
+    # ----- Volume nfs -----
     
     $counters->child_add_string('counter', 'nfs_read_data');
     $counters->child_add_string('counter', 'nfs_read_latency');
@@ -1662,7 +1662,7 @@ sub get_volume_perf_stats {
     $counters->child_add_string('counter', 'nfs_other_latency');
     $counters->child_add_string('counter', 'nfs_other_ops');
 
-    #  ----- Volume cifs -----
+    # ----- Volume cifs -----
 
     $counters->child_add_string('counter', 'cifs_read_data');
     $counters->child_add_string('counter', 'cifs_read_latency');
@@ -1675,7 +1675,7 @@ sub get_volume_perf_stats {
     $counters->child_add_string('counter', 'cifs_other_latency');
     $counters->child_add_string('counter', 'cifs_other_ops');
 
-    #  ----- Volume iSCSI -----
+    # ----- Volume iSCSI -----
 
     $counters->child_add_string('counter', 'iscsi_read_data');
     $counters->child_add_string('counter', 'iscsi_read_latency');
@@ -1688,11 +1688,24 @@ sub get_volume_perf_stats {
     $counters->child_add_string('counter', 'iscsi_other_latency');
     $counters->child_add_string('counter', 'iscsi_other_ops');
 
-    #  ----- Volume inodes -----
+    # ----- Volume inodes -----
 
     $counters->child_add_string('counter', 'wv_fsinfo_public_inos_total');
     $counters->child_add_string('counter', 'wv_fsinfo_public_inos_reserve');
     $counters->child_add_string('counter', 'wv_fsinfo_public_inos_used');
+
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_total');
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_reserve');
+    $counters->child_add_string('counter', 'wv_fsinfo_inos_used'); 
+
+    # ------ Volume capacity -----
+
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_total');
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_reserve');
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_used');
+
+    $counters->child_add_string('counter', 'wv_fsinfo_blks_snap_reserve_pct');
+    $counters->child_add_string('counter', 'wvblk_snap_reserve');
 
     $request->child_add($counters);
 
@@ -1923,6 +1936,40 @@ sub get_volume_perf_stats {
             push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_public_inos_used', 
                                             'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
                                             'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
+ 
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_total', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_total',           'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_total', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_reserve', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_reserve',         'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_reserve', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_used', 
+                                            'value' => calc_counter_value('wv_fsinfo_inos_used',            'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_inos_used', 'volume')});
+
+            # ------ Volume capacity -----
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_total', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_total',           'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_total', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_reserve', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_reserve',         'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_reserve', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_used', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_used',            'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_used', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_snap_reserve_pct', 
+                                            'value' => calc_counter_value('wv_fsinfo_blks_snap_reserve_pct',    'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wv_fsinfo_blks_snap_reserve_pct', 'volume')});
+
+            push (@derived_perf_data,   {   'name'  => 'wvblk_snap_reserve', 
+                                            'value' => calc_counter_value('wvblk_snap_reserve',             'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
+                                            'unit'  => get_unit('wvblk_snap_reserve', 'volume')});
 
             $probe_metric_hash{'volume-' . $volume_instance} = \@derived_perf_data;
         }
