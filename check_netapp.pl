@@ -281,6 +281,8 @@ sub list_perf_objects_instances {
     $log->info("Listing all instances of performance object [$perf_object]:");
 
     my $request = NaElement->new('perf-object-instance-list-info');
+    $request->child_add_string('objectname', $perf_object);
+
     my $result  = call_api($request) || return;
 
     foreach ($result->child_get('instances')->children_get()) {
