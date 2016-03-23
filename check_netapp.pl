@@ -1046,7 +1046,7 @@ sub get_cifs_stats_perf_stats {
     #  ----- Cifs sessions -----
 
     $counters->child_add_string('counter', 'curr_sess_cnt');
-    $counters->child_add_string('counter', 'multi_user_sess_cn');
+    $counters->child_add_string('counter', 'multi_user_sess_cnt');
     $counters->child_add_string('counter', 'curr_conn_user_cnt');
     $counters->child_add_string('counter', 'logon_cnt');
     $counters->child_add_string('counter', 'pdc_auth_cnt');
@@ -1090,9 +1090,9 @@ sub get_cifs_stats_perf_stats {
                                         'value' => calc_counter_value('curr_sess_cnt',          'cifs_stats', $current_perf_data, $old_perf_data),
                                         'unit'  => get_unit('curr_sess_cnt', 'cifs_stats')});
 
-        push (@derived_perf_data,   {   'name'  => 'multi_user_sess_cn', 
-                                        'value' => calc_counter_value('multi_user_sess_cn',     'cifs_stats', $current_perf_data, $old_perf_data),
-                                        'unit'  => get_unit('multi_user_sess_cn', 'cifs_stats')});
+        push (@derived_perf_data,   {   'name'  => 'multi_user_sess_cnt', 
+                                        'value' => calc_counter_value('multi_user_sess_cnt',     'cifs_stats', $current_perf_data, $old_perf_data),
+                                        'unit'  => get_unit('multi_user_sess_cnt', 'cifs_stats')});
 
         push (@derived_perf_data,   {   'name'  => 'curr_conn_user_cnt', 
                                         'value' => calc_counter_value('curr_conn_user_cnt',     'cifs_stats', $current_perf_data, $old_perf_data),
@@ -1188,12 +1188,6 @@ sub get_aggregate_perf_stats {
     $counters->child_add_string('counter', 'wv_fsinfo_blks_snap_reserve_pct');
     $counters->child_add_string('counter', 'wvblk_snap_reserve');
 
-    # ----- Inode data -----
-
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_total');
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_reserve');
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_used');
-
     $request->child_add($counters);
 
     my $result              = call_api($request) || return;
@@ -1262,20 +1256,6 @@ sub get_aggregate_perf_stats {
             push (@derived_perf_data,   {   'name'  => 'wvblk_snap_reserve', 
                                             'value' => calc_counter_value('wvblk_snap_reserve',                 'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
                                             'unit'  => get_unit('wvblk_snap_reserve', 'aggregate')});
-
-            # ----- Inode data -----
-
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_total', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_total',               'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_total', 'aggregate')});
-
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_reserve', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_reserve',             'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_reserve', 'aggregate')});
-
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_used', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_used',                'aggregate', $current_perf_data->{$aggregate_instance}, $old_perf_data->{$aggregate_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_used', 'aggregate')});
 
             $probe_metric_hash{'aggregate-' . $aggregate_instance} = \@derived_perf_data;
         }
@@ -1709,10 +1689,6 @@ sub get_volume_perf_stats {
     $counters->child_add_string('counter', 'wv_fsinfo_public_inos_reserve');
     $counters->child_add_string('counter', 'wv_fsinfo_public_inos_used');
 
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_total');
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_reserve');
-    $counters->child_add_string('counter', 'wv_fsinfo_inos_used'); 
-
     # ------ Volume capacity -----
 
     $counters->child_add_string('counter', 'wv_fsinfo_blks_total');
@@ -1951,18 +1927,6 @@ sub get_volume_perf_stats {
                                             'value' => calc_counter_value('wv_fsinfo_public_inos_used',     'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
                                             'unit'  => get_unit('wv_fsinfo_public_inos_used', 'volume')});
  
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_total', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_total',           'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_total', 'volume')});
-
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_reserve', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_reserve',         'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_reserve', 'volume')});
-
-            push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_inos_used', 
-                                            'value' => calc_counter_value('wv_fsinfo_inos_used',            'volume', $current_perf_data->{$volume_instance}, $old_perf_data->{$volume_instance}),
-                                            'unit'  => get_unit('wv_fsinfo_inos_used', 'volume')});
-
             # ------ Volume capacity -----
 
             push (@derived_perf_data,   {   'name'  => 'wv_fsinfo_blks_total', 
