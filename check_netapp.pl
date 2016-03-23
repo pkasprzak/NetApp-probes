@@ -2142,7 +2142,9 @@ sub get_user_selected_perf_stats {
     if (@sis_instances) {
         if (/^use_volumes$/i ~~ @sis_instances and @volume_instances) {
             $log->info("Use volume instances as input for sis object...");
-            get_sis_perf_stats(\@volume_instances);
+            # Prefix all volume names with "/vol/" as sis needs absolute volumes names as instances
+            my @prefixed_volume_instances = map {'/vol/' . $_} @volume_instances;
+            get_sis_perf_stats(\@refixed_volume_instances);
         } else {
             get_sis_perf_stats(\@sis_instances);
         }
