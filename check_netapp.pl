@@ -2144,7 +2144,7 @@ sub get_user_selected_perf_stats {
             $log->info("Use volume instances as input for sis object...");
             # Prefix all volume names with "/vol/" as sis needs absolute volumes names as instances
             my @prefixed_volume_instances = map {'/vol/' . $_} @volume_instances;
-            get_sis_perf_stats(\@refixed_volume_instances);
+            get_sis_perf_stats(\@prefixed_volume_instances);
         } else {
             get_sis_perf_stats(\@sis_instances);
         }
