@@ -62,6 +62,20 @@
 # 10:20     < 10 or > 20, (outside the range of {10 .. 20})
 # @10:20    ≥ 10 and ≤ 20, (inside the range of {10 .. 20})
 #
+#
+# Examples:
+# ---------
+#
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name> -s nfsv3
+#
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -s volume=<vol1-name> -s volume=<vol2-name> -s sis=use_volumes
+#
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -s interface=all
+#
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -l objects
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -l counters=<object-name>
+# check_netapp.pl -H <filer-ip> -U <user> -P <password> -l instances=<object-name>
+#
 # To do:
 # -----
 #
@@ -2126,7 +2140,12 @@ sub get_user_selected_perf_stats {
 
     # Process sis instances
     if (@sis_instances) {
-        get_sis_perf_stats(\@sis_instances);
+        if (/^use_volumes$/i ~~ @$sis_instances and @volume_instances) {
+            $log->info("Use volume instances as input for sis object...");
+            get_sis_perf_stats(\@volume_instances);
+        } else {
+            get_sis_perf_stats(\@sis_instances);
+        }
     }
 }
 
@@ -2371,11 +2390,15 @@ $plugin->add_arg(
 $plugin->add_arg(
     spec        => 'stats|s=s',
     help        => "Type of stats to retrieve (default: system). Multiple stats can be selected, separated by a column. Valid values are:\n"    .
-                    "     aggregate=aggr_name\n"    .
-                    "     nfsv3\n"                  .
-                    "     processor\n"              .
-                    "     system\n"                 .
-                    "     volume=vol_name\n"        ,
+                    "   aggregate=<aggr_name>|'all'\n"              .
+                    "   cifs\n"                                     .
+                    "   interface=<if_name>|'all'\n"                .
+                    "   nfsv3\n"                                    .
+                    "   processor\n"                                .
+                    "   sis=<vol_name>|'use_volumes'|'all'\n"       .
+                    "   system\n"                                   .
+                    "   vfiler=<vfiler_name>|'all'\n"               .
+                    "   volume=<vol_name>|'all'\n"                  ,
     required    => 0,
     default     => 'system'
 );
