@@ -405,7 +405,7 @@ sub calc_counter_value {
 
     our $perf_object_counter_descriptions;
 
-    $log->debug("Calculating value of counter '$counter_name' of perf object '$perf_object'");
+    $log->debug("Calculating value of counter [$counter_name] of perf object [$perf_object]");
 
     # Get counter descriptions. If no descriptions available yet, load them!
     if (! $perf_object_counter_descriptions->{$perf_object}) {
@@ -417,7 +417,7 @@ sub calc_counter_value {
 
     # Check, if there is a description for the selected counter
     if (! defined $counter_description or ! %$counter_description) {
-        $log->error("No description found for counter '$counter_name' of perf object '$perf_object'!");
+        $log->error("No description found for counter [$counter_name] of perf object [$perf_object]!");
         return;
     } else {
         $log->debug("Using description:\n" . Dumper($counter_description));
@@ -449,10 +449,10 @@ sub calc_counter_value {
         case 'average' {
             # (c2 - c1) / (b2 - b1)
             my $base_counter_name = $counter_description->{'base_counter'};
-            $log->debug("Using base counter '$base_counter_name' for calculations.");
+            $log->debug("Using base counter [$base_counter_name] for calculation for counter [$counter_name].");
 
             unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-                $log->error("Base counter not available in perf data!");
+                $log->error("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
                 return 0;
             }
 
@@ -460,7 +460,7 @@ sub calc_counter_value {
             my $old_base_counter_data       = $old_perf_data->{$base_counter_name};
 
             if ($current_base_counter_data == $old_base_counter_data) {
-                $log->warn("Old and new base counter equal -> returning 0 to prevent division by zero.");
+                $log->warn("Old and new base counter [$base_counter_name] equal -> returning 0 to prevent division by zero.");
                 return 0;
             }
 
@@ -473,10 +473,10 @@ sub calc_counter_value {
         case 'percent' {
             # 100 * (c2 - c1) / (b2 - b1)
             my $base_counter_name = $counter_description->{'base_counter'};
-            $log->debug("Using base counter '$base_counter_name' for calculations.");
+            $log->debug("Using base counter [$base_counter_name] for calculation for counter [$counter_name].");
 
             unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-                $log->error("Base counter not available in perf data!");
+                $log->error("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
                 return 0;
             }
 
