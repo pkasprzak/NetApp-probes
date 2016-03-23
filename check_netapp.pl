@@ -2140,7 +2140,7 @@ sub get_user_selected_perf_stats {
 
     # Process sis instances
     if (@sis_instances) {
-        if (/^use_volumes$/i ~~ @$sis_instances and @volume_instances) {
+        if (/^use_volumes$/i ~~ @sis_instances and @volume_instances) {
             $log->info("Use volume instances as input for sis object...");
             get_sis_perf_stats(\@volume_instances);
         } else {
