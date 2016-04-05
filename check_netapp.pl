@@ -287,7 +287,7 @@ sub list_perf_objects {
 # ---------------------------------------------------------------------------------------------------------------------
 # Print list of perf objects instances (perf_object_instance_list_info)
 
-sub list_perf_objects_instances {
+sub list_perf_object_instances {
 
     # Perf. object to list all instances of
     my $perf_object = shift;
@@ -303,6 +303,33 @@ sub list_perf_objects_instances {
         my $name    = $_->child_get_string('name');
 
         $log->info(sprintf("%30s", $name));
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Print list of perf objects counter instances (perf_object_instance_list_info)
+
+sub list_perf_object_counter_instances {
+
+    # Perf. object to list all instances of
+    my $perf_object = shift;
+
+    $log->info("Listing all counter descriptions of performance object [$perf_object]:");
+
+    my $request = NaElement->new('perf-object-counter-list-info');
+    $request->child_add_string('objectname', $perf_object);
+
+    my $result  = call_api($request) || return;
+
+    foreach my $na_element ($result->child_get('counters')->children_get()) {
+
+        $log->info(sprintf("%20s: %30s", 'name',            $na_element->child_get_string('name')));
+        $log->info(sprintf("%20s: %30s", 'desc',            $na_element->child_get_string('desc')));
+        $log->info(sprintf("%20s: %30s", 'privilege-level', $na_element->child_get_string('privilege-level')));
+        $log->info(sprintf("%20s: %30s", 'properties',      $na_element->child_get_string('properties')));
+        $log->info(sprintf("%20s: %30s", 'unit',            $na_element->child_get_string('unit')));
+        $log->info(sprintf("%20s: %30s", 'base-counter',    $na_element->child_get_string('base-counter')));
+        $log->info(sprintf("%20s: %30s", 'type',            $na_element->child_get_string('type')));
     }
 }
 
@@ -1600,7 +1627,9 @@ sub get_sis_perf_stats {
                                             'value' => calc_counter_value('share_saved_blk',    'sis', $current_perf_data->{$sis_instance}, $old_perf_data->{$sis_instance}),
                                             'unit'  => get_unit('share_saved_blk', 'sis')});
 
-            $probe_metric_hash{'sis-' . $sis_instance} = \@derived_perf_data;
+            # sis instances (= volumes) are specified with an absolute path '/vol/...' which is problematic, so remove this part when defining the metric names
+            my $metric_name = substr(sis_instance, 4, length($sis_instance));
+            $probe_metric_hash{'sis.' . $metric_name} = \@derived_perf_data;
         }
     }
 }
@@ -2169,12 +2198,12 @@ sub list_user_selected_meta_data {
 
         case /^counters/i {
             my ($name, $object) = split('=', $list);
-            load_perf_object_counter_descriptions($object);
+            list_perf_object_counter_descriptions($object);
         }
 
         case /^instances/i {
             my ($name, $object) = split('=', $list);
-            list_perf_objects_instances($object);
+            list_perf_object_instances($object);
         }
 
         else {
