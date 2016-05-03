@@ -1628,7 +1628,7 @@ sub get_sis_perf_stats {
                                             'unit'  => get_unit('share_saved_blk', 'sis')});
 
             # sis instances (= volumes) are specified with an absolute path '/vol/...' which is problematic, so remove this part when defining the metric names
-            my $metric_name = substr(sis_instance, 4, length($sis_instance));
+            my $metric_name = substr($sis_instance, 4, length($sis_instance));
             $probe_metric_hash{'sis.' . $metric_name} = \@derived_perf_data;
         }
     }
