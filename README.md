@@ -40,6 +40,7 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 
 For some modules dev packages may need to be installed
 
+```
 perl -MCPAN -e shell
 cpan> install Monitoring::Plugin        (For Nagios stuff)
 cpan> install Log::Log4perl             (For logging)
@@ -50,6 +51,7 @@ cpan> install Clone                     (GARU/Clone-0.37.tar.gz)
 cpan> install Net::Graphite             (v0.16)
 cpan> install IO::Async                 (For Timer loop: IO::Async::Timer::Periodic, v0.70)
 cpan> install Time::HiRes               (For high resolution (ms) times, v1.9732)
+```
 
 ### Windows
 
@@ -57,18 +59,26 @@ A list of packages installed for a working Cygwin deployment under Windows Serve
 
 This list can be reinstalled with the following command (untested ;)):
 
+```
 setup-x86_64 -P `awk 'NR==1{printf \$1}{printf ",%s", \$1}' packagelist.cygwin`
+```
 
 ## Examples
 
 Get system stats as metrics and write them out via graphite protocol, every 5s:
+```
 check_netapp.pl -H <filer-ip> -U <user> -P <password> -o graphite -w 5 -s system
+```
 
 Get nfsv3 and processorr stats and write them out via graphite protocol, every 5s:
+```
 check_netapp.pl -H <filer-ip> -U <user> -P <password> -o graphite -w 5 -s nfsv3,processor
+```
 
 A more complex example (graphite, every 5s, all interfaces, two volumes, two aggregates):
+```
 ./check_netapp.pl -H <filer-ip> -U <user> -P <pwd> -o graphite -w 5 -s cifs,nfsv3,processor,system,interface=all,aggregate=<aggregate1>,aggregate=<aggregate2>,volume=<volume1>,volume=<volume2>
+```
 
 ## Screenshots
 
