@@ -5,16 +5,17 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 ## Features
 
 - Support for different groups of perf. metrics available through the NetApp SDK
-    - Available: aggregates, volumes, nfsv3, cifs, processor, system, interfaces
-    - Not difficult to add new ones
-- Uses meta-information APIs from NetApp SDK to process metrics auto-magically (i.e. deltas, rates, averages, etc.)
-- Caching of metric descriptions / metrics necessary for calculations in JSON files to reduce load on the filers
+    - Currently available: aggregates, volumes, nfsv3, cifs, processor, system, interfaces
+    - Easy to add new ones
+- Uses meta-information APIs from NetApp SDK to process metrics auto-magically (i.e. calculate deltas, rates, averages, etc. as appropriate)
+- Caching of metric descriptions and metric values necessary for calculations (e.g. rates) in JSON files to reduce load on the filers
+- Supports high frequency collection (currently used on our filers with 5 second intervals)
 - Used in production for NetApp FAS6240 filers 
-- Support for exploration of the perf. monitoring APIs of the NetApp SDK (e.g. list available metrics)
+- Support for exploration of the perf. monitoring APIs of the NetApp SDK (e.g. list all available metrics for objects, list all objects)
 - Works under Linux / Windows (tested with Microsoft Server 2012 with Cygwin)
 - Optimized NetApp SDK API calls for high performance / low load on the filers
 - Extensive logging capabilities
-- Can be used as Nagios support
+- Can be used as Nagios probe
     - Generate alerts based on performance metrics (ranges, etc.)
     - Use multiple metrics in one call to alert on
     - Return metrics to generate graphs in Nagios
@@ -35,7 +36,7 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
  - Find the API documentation here:
    ./netapp-manageability-sdk-5.4P1/doc/perldoc/Ontap7ModeAPI.html#perf_object_get_instances
 
-### Linux: install perl modules available directly in most distros
+### Linux: install necessary perl modules available in most distros as packages
 
 - lwp-useragent
 - xml-parser
@@ -45,7 +46,7 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 
 ### Linux: install missing perl modules directly from CPAN
 
-For some modules dev packages may need to be installed
+For some modules dev packages may need to be installed first
 
 ```
 perl -MCPAN -e shell
@@ -64,7 +65,7 @@ cpan> install Time::HiRes               (For high resolution (ms) times, v1.9732
 
 A list of packages installed for a working Cygwin deployment under Windows Server 2012 is commited into the repository (packagelist.cygwin)
 
-This list can be reinstalled with the following command (untested ;)):
+The packages from the list should be able to be installed in Cygwin with the following command (untested):
 
 ```
 setup-x86_64 -P `awk 'NR==1{printf \$1}{printf ",%s", \$1}' packagelist.cygwin`
@@ -89,49 +90,51 @@ A more complex example (graphite, every 5s, all interfaces, two volumes, two agg
 
 ## Screenshots
 
-The followinig screenshots are from an InfluxDB / Grafana deployment utilizing / visualizing the data collected by this probe.
+The followinig screenshots are from an InfluxDB / Grafana deployment visualizing the data collected by this probe.
 
 ### Overview Dashboard
 
 The following screenshots show the overview dashboard in with different time scales
 
-Overview 1h
+**Overview time range: 1h**
 
 [![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_1h.png)](#netappoverview1h)
 
-Overview 5m
+**Overview time range: 5m**
 
 [![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_5m.png)](#netappoverview5m)
 
-Overview 24h
+**Overview time range: 24h**
 
 [![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_24h.png)](#netappoverview24h)
 
 ### Aggregate Dashboard
 
-Aggregate 1h
+**Aggregate time range: 1h**
 
 [![netapp aggregate](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_aggregate_1h.png)](#netappaggregate1h)
 
-Aggregate 30d
+**Aggregate time range: 30d**
 
 [![netapp aggregate](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_aggregate_30d.png)](#netappaggregate30d)
 
 ### Interfaces Dashboard
 
-Interfaces 1h
+**Interfaces time range: 1h**
 
 [![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces.png)](#netappinterfaces1h)
 
-Interfaces graph configuration in Grafana (note the regexps / variables :))
+**Interfaces graph configuration in Grafana (note the regular expressions and variables to easily select all the relevant metrics)**
 
 [![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces_configuration.png)](#netappinterfacesconfiguration)
 
-Interfaces time range selection in Grafana
+**Interfaces time range selection in Grafana**
 
 [![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces_time_ranges.png)](#netappinterfacestimeranges)
 
 ### Volume Dashboard
+
+**Volume time range: 1h**
 
 [![netapp volume](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_volume.png)](#netappvolume)
 
