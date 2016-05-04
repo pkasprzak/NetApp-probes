@@ -33,6 +33,12 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 
 The followinig screenshots are from an InfluxDB / Grafana deployment utilizing / visualizing the data collected by this probe.
 
-[![solarized dualmode](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/NetApp_Overview.png)](#features)
+### Overview dashboard
+
+The following screenshots show the overview dashboard in with different time scales
+
+[![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_1h.png)](#netappoverview1h)
+[![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_5m.png)](#netappoverview5m)
+[![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_24h.png)](#netappoverview24h)
 
 
