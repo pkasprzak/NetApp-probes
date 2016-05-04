@@ -28,6 +28,13 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 
 ## Installation
 
+### Get NetApp perl SDK
+
+ - Download netapp-manageability-sdk-5.4 from http://support.netapp.com/NOW/cgi-bin/software
+ - Extract and copy the lib/perl/NetApp directory with the perl modules to somewhere where it can be found by perl (e.g. directly into the root path of this repo)
+ - Find the API documentation here:
+   ./netapp-manageability-sdk-5.4P1/doc/perldoc/Ontap7ModeAPI.html#perf_object_get_instances
+
 ### Linux: install perl modules available directly in most distros
 
 - lwp-useragent
