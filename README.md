@@ -33,7 +33,7 @@ Nagios / Graphite probe(s) for monitoring of NetApp filers.
 
 The followinig screenshots are from an InfluxDB / Grafana deployment utilizing / visualizing the data collected by this probe.
 
-### Overview dashboard
+### Overview Dashboard
 
 The following screenshots show the overview dashboard in with different time scales
 
@@ -48,5 +48,34 @@ Overview 5m
 Overview 24h
 
 [![netapp overview](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_overview_24h.png)](#netappoverview24h)
+
+### Aggregate Dashboard
+
+Aggregate 1h
+
+[![netapp aggregate](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_aggregate_1h.png)](#netappaggregate1h)
+
+Aggregate 30d
+
+[![netapp aggregate](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_aggregate_30d.png)](#netappaggregate30d)
+
+### Interfaces Dashboard
+
+Interfaces 1h
+
+[![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces_1h.png)](#netappinterfaces1h)
+
+Interfaces graph configuration in Grafana (note the regexps / variables :))
+
+[![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces_configuration.png)](#netappinterfacesconfiguration)
+
+Interfaces time range selection in Grafana
+
+[![netapp interfaces](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_interfaces_time_ranges.png)](#netappinterfacestimeranges)
+
+### Volume Dashboard
+
+[![netapp volume](https://github.com/pkasprzak/NetApp-probes/raw/master/docs/screenshots/netapp_volume.png)](#netappvolume)
+
 
 
