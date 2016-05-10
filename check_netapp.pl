@@ -110,6 +110,12 @@ use lib "./NetApp";
 use NaServer;
 use NaElement;
 
+# How often to retry to connect when failing to connect to NetApp API endpoint
+use constant MAX_RETRIES        => 3;
+
+# How long to wait between reconnects in ms
+use constant SLEEP_ON_ERROR_MS  => 2000;
+
 # Standard variables used in Monitoring::Plugin constructor
 my $PROGNAME    = 'check_netapp';
 my $VERSION     = '1.1';
@@ -237,10 +243,7 @@ sub call_api {
     }
     
     my $i = 1;
-    my $max_retries = 3;
-    my $sleep_on_error_ms = 500;
-
-    while ($i <= $max_retries) {
+    while ($i <= MAX_RETRIES) {
         my $result = $main::filer->invoke_elem($request);
 
         if ($log->is_debug()) {
@@ -251,8 +254,8 @@ sub call_api {
         if ($result->results_status() eq 'failed') {
 
             $log->error("API request failed: " . $result->results_reason());
-            $log->error("=> Reconnecting and retrying (try $i of $max_retries)");
-            Time::HiRes::usleep($sleep_on_error_ms);
+            $log->error("=> Reconnecting and retrying (try $i of " . MAX_RETRIES . ")");
+            Time::HiRes::usleep(SLEEP_ON_ERROR_MS);
             connect_to_filer();
             $i++;
 
