@@ -118,7 +118,7 @@ use constant SLEEP_ON_ERROR_MS  => 2000;
 
 # Standard variables used in Monitoring::Plugin constructor
 my $PROGNAME    = 'check_netapp';
-my $VERSION     = '1.1';
+my $VERSION     = '2.0';
 my $DESCRIPTION = 'Probe for checking a NetApp filer. Examples:\n'                                                  .
                     'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s aggregate=<aggregate-name>\n'         .
                     'check_netapp.pl -H <filer-ip> -U <user> -P <password> -s processor\n'                          .
