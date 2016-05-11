@@ -2362,6 +2362,7 @@ sub main_loop {
                         # Send metrics
                         my %hash_to_send = (time() => \%probe_output_hash);
                         $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
+			last;
                     } else {
                         $log->error("Could not connect to graphite endpoint: " . $plugin->opts->graphite);
                         $log->error("=> Reconnecting and retrying (try $i of " . MAX_RETRIES . ")");
@@ -2405,12 +2406,14 @@ $plugin->add_arg(
     spec        => 'hostname|H=s',
     help        => "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
     required    => 1,
+    default	=> 'localhost'
 );
 
 $plugin->add_arg(
     spec        => 'graphite|G=s',
     help        => "Graphite compatible endpoint to write metrics to (default: localhost).\n",
     required    => 0,
+    default     => 'localhost'
 );
 
 $plugin->add_arg(
