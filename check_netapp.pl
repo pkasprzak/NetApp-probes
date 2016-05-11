@@ -2350,19 +2350,26 @@ sub main_loop {
                  port                  => 2003,
                  trace                 => 0,                # if true, copy what's sent to STDERR
                  proto                 => 'tcp',            # can be 'udp'
-                 timeout               => 1,                # timeout of socket connect in seconds
-                 fire_and_forget       => 0,                # if true, ignore sending errors
-                 return_connect_error  => 0,                # if true, forward connect error to caller
+                 timeout               => 5,                # timeout of socket connect in seconds
+                 fire_and_forget       => 1,                # if true, ignore sending errors
+                 return_connect_error  => 1,                # if true, forward connect error to caller
              );
  
             # Send metrics to graphite endpoint
             if (not $plugin->opts->debug) {
-                if ($graphite->connect) {
-                    # Send metrics
-                    my %hash_to_send = (time() => \%probe_output_hash);
-                    $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
-                } else {
-                    $log->error("Could not connect to graphite endpoint: $graphite_endpoint => not sending metrics!");
+
+                my $i = 1;
+                while ($i <= MAX_RETRIES) {
+                    if ($graphite->connect) {
+                        # Send metrics
+                        my %hash_to_send = (time() => \%probe_output_hash);
+                        $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
+                    } else {
+                        $log->error("Could not connect to graphite endpoint: $graphite_endpoint");
+                        $log->error("=> Reconnecting and retrying (try $i of " . MAX_RETRIES . ")");
+                        Time::HiRes::usleep(SLEEP_ON_ERROR_MS);
+                        $i++;
+                    }
                 }
             }
         }
