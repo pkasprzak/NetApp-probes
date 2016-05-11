@@ -2363,7 +2363,7 @@ sub main_loop {
                         my %hash_to_send = (time() => \%probe_output_hash);
                         $graphite->send(path => $static_system_stats->{'hostname'}, data => \%hash_to_send);
                     } else {
-                        $log->error("Could not connect to graphite endpoint: $graphite_endpoint");
+                        $log->error("Could not connect to graphite endpoint: " . $plugin->opts->graphite);
                         $log->error("=> Reconnecting and retrying (try $i of " . MAX_RETRIES . ")");
                         Time::HiRes::usleep(SLEEP_ON_ERROR_MS);
                         $i++;
