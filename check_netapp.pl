@@ -2342,11 +2342,9 @@ sub main_loop {
 
             $log->info("Sending output to graphite...");
 
-            my $graphite_endpoint = 'muendung.gwdg.de';
-
             my $graphite = Net::Graphite->new(
                  # except for host, these hopefully have reasonable defaults, so are optional
-                 host                  => $graphite_endpoint,
+                 host                  => $plugin->opts->graphite,
                  port                  => 2003,
                  trace                 => 0,                # if true, copy what's sent to STDERR
                  proto                 => 'tcp',            # can be 'udp'
@@ -2407,6 +2405,12 @@ $plugin->add_arg(
     spec        => 'hostname|H=s',
     help        => "Hostname or IP address of the NetApp filer to check (default: localhost).\n",
     required    => 1,
+);
+
+$plugin->add_arg(
+    spec        => 'graphite|G=s',
+    help        => "Graphite compatible endpoint to write metrics to (default: localhost).\n",
+    required    => 0,
 );
 
 $plugin->add_arg(
