@@ -114,7 +114,7 @@ use NaElement;
 use constant MAX_RETRIES        => 3;
 
 # How long to wait between reconnects in ms
-use constant SLEEP_ON_ERROR_MS  => 2000;
+use constant SLEEP_ON_ERROR_MS  => 1000;
 
 # Standard variables used in Monitoring::Plugin constructor
 my $PROGNAME    = 'check_netapp';
@@ -2370,6 +2370,9 @@ sub main_loop {
                         $i++;
                     }
                 }
+		if ($i ==  MAX_RETRIES) {
+		    $log->error("Could not connect to graphite endpoint after MAX_RETRIES, continueing with next iteration...");
+		}
             }
         }
     }
