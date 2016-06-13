@@ -447,7 +447,7 @@ sub calc_counter_value {
 
     # Check, if there is a description for the selected counter
     if (! defined $counter_description or ! %$counter_description) {
-        $log->error("No description found for counter [$counter_name] of perf object [$perf_object]!");
+        $log->debug("No description found for counter [$counter_name] of perf object [$perf_object]!");
         return;
     } else {
         $log->debug("Using description:\n" . Dumper($counter_description));
@@ -482,7 +482,7 @@ sub calc_counter_value {
             $log->debug("Using base counter [$base_counter_name] for calculation for counter [$counter_name].");
 
             unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-                $log->error("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
+                $log->debug("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
                 return 0;
             }
 
@@ -506,7 +506,7 @@ sub calc_counter_value {
             $log->debug("Using base counter [$base_counter_name] for calculation for counter [$counter_name].");
 
             unless ($current_perf_data->{$base_counter_name} and $old_perf_data->{$base_counter_name}) {
-                $log->error("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
+                $log->debug("Base counter [$base_counter_name] not available in perf data (needed for calculation of counter [$counter_name])!");
                 return 0;
             }
 
@@ -626,7 +626,7 @@ sub check_perf_data {
     my $perf_data       = shift;
     my $perf_data_count = scalar @$perf_data;
 
-    $log->info("Checking [$perf_data_count] perf counter metrics for critical / warning ranges...");
+    $log->debug("Checking [$perf_data_count] perf counter metrics for critical / warning ranges...");
 
     foreach my $counter (@$perf_data) {
         # Check for warning ranges
@@ -2264,13 +2264,13 @@ sub main_loop {
             }
         }
         my $filtered_counter_num = scalar(@$perf_counters) - scalar(@filtered_perf_counters);
-        $log->info("Filtered [$filtered_counter_num] counter due to cli selection");
+        $log->debug("Filtered [$filtered_counter_num] counter due to cli selection");
 
         # Check perf data for warnings / criticals
         check_perf_data(\@filtered_perf_counters);
 
         my $filtered_perf_counters_num = scalar @filtered_perf_counters;
-        $log->info("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
+        $log->debug("Rendering [$filtered_perf_counters_num] perf counter metrics for output format [$plugin->opts->output]...");
 
         # Process a group of filtered perf counters according to selected format
         switch (lc($plugin->opts->output)) {
